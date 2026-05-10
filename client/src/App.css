@@ -1,0 +1,144 @@
+:root {
+  --bg-dark: #121218;
+  --panel-bg: #1e1e26;
+  --accent-red: #ff4757;
+  --accent-red-hover: #ff6b81;
+  --accent-green: #2ed573;
+  --accent-green-hover: #7bed9f;
+  --accent-yellow: #ffc312;
+  --text-main: #ffffff;
+  --text-muted: #8395a7;
+  --border-color: #2f3542;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body, html, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+/* РОЗТЯГУЄМО НА ВСЮ ШИРИНУ ЕКРАНУ БЕЗ ЛІМІТІВ */
+.app-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.container {
+  background-color: var(--panel-bg);
+  border-radius: 20px;
+  padding: 30px;
+  width: 100%;
+  max-width: 100%; /* Жодних обмежень у пікселях */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.logo-title { color: var(--accent-red); font-size: 3rem; text-align: center; font-weight: 900; letter-spacing: 3px; margin-bottom: 10px; }
+
+/* Тексти */
+.text-danger { color: var(--accent-red); text-align: center; }
+.text-success { color: var(--accent-green); }
+.muted { color: var(--text-muted); font-size: 0.9em; }
+
+/* Інпути та селектори */
+.input-group { display: flex; flex-direction: column; gap: 15px; }
+.input-group.inline { flex-direction: row; }
+.input-group.inline input { flex: 1; }
+.input-group.inline button { flex: 0 0 70px; font-size: 2rem; }
+
+input, select, textarea {
+  width: 100%; padding: 18px; border-radius: 12px; border: 2px solid var(--border-color); background-color: var(--bg-dark); color: white; font-size: 1.1rem; outline: none; transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent-green); }
+textarea { min-height: 100px; resize: vertical; }
+
+/* КНОПКИ */
+button {
+  padding: 18px; border-radius: 15px; border: none; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px;
+}
+button:active { transform: scale(0.95); }
+
+.primary-btn { background-color: var(--accent-red); color: white; width: 100%; box-shadow: 0 5px 15px rgba(255,71,87,0.3); }
+.primary-btn:hover { background-color: var(--accent-red-hover); }
+
+.secondary-btn { background-color: var(--border-color); color: white; width: 100%; }
+.secondary-btn:hover { background-color: #3d4554; }
+
+.mega-btn { background-color: var(--accent-yellow); color: black; font-size: 1.5rem; padding: 25px; width: 100%; box-shadow: 0 5px 20px rgba(255,195,18,0.4); }
+.mega-btn:hover { background-color: #ffd32a; transform: translateY(-3px); }
+
+.ghost-btn { background-color: transparent; color: var(--text-muted); border: 2px solid var(--border-color); width: 100%; }
+.ghost-btn:hover { border-color: var(--text-main); color: var(--text-main); }
+
+.divider { text-align: center; color: var(--text-muted); font-weight: bold; font-size: 1.2rem; }
+
+/* Панелі Лобі */
+.settings-panel, .teams-list, .players-list { background-color: var(--bg-dark); padding: 20px; border-radius: 16px; display: flex; flex-direction: column; gap: 15px; }
+.settings-panel label { display: flex; justify-content: space-between; align-items: center; gap: 15px; font-weight: bold; font-size: 1.1rem; }
+
+.team-card { display: flex; justify-content: space-between; align-items: center; background-color: var(--panel-bg); padding: 15px 20px; border-radius: 12px; font-size: 1.2rem; border: 1px solid var(--border-color); }
+.team-card { display: flex; justify-content: space-between; align-items: center; background-color: var(--panel-bg); padding: 15px 20px; border-radius: 12px; font-size: 1.2rem; border: 1px solid var(--border-color); }
+.team-actions { display: flex; gap: 10px; align-items: center; }
+.join-btn { padding: 10px 20px; background-color: var(--accent-green); color: black; font-size: 1rem; border-radius: 12px; font-weight: bold; cursor: pointer; border: none; box-shadow: 0 4px 10px rgba(46,213,115,0.3); }
+.delete-btn { padding: 8px 12px; background-color: transparent; font-size: 1.2rem; border-radius: 10px; border: 2px solid var(--accent-red); cursor: pointer; transition: 0.2s; }
+.delete-btn:hover { background-color: rgba(255, 71, 87, 0.2); transform: scale(1.05); }
+
+.room-code-display { text-align: center; font-size: 1.5rem; padding: 20px; border: 3px dashed var(--accent-red); border-radius: 15px; background-color: var(--bg-dark); letter-spacing: 2px; }
+
+/* --- ЕКРАН САМОЇ ГРИ --- */
+.game-mode { padding: 0; max-width: 100%; height: 100vh; justify-content: space-between; }
+
+.game-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background-color: var(--panel-bg); width: 100%; border-bottom: 2px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.team-info-top { display: flex; flex-direction: column; gap: 5px; }
+.team-name { font-size: 1.5rem; font-weight: bold; color: var(--text-main); }
+.team-live-score { color: var(--accent-green); font-size: 1.2rem; font-weight: bold; }
+
+.timer-display { font-size: 3.5rem; font-weight: 900; }
+.timer-danger { color: var(--accent-red); animation: pulse 1s infinite; }
+.timer-warning { color: var(--accent-yellow); font-size: 2.5rem; }
+
+/* Дозволяємо ігровому полю тягнутися на всі боки */
+.game-board { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 0; }
+
+.word-container { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 300px; }
+.main-word { font-size: 6rem; word-break: break-word; text-transform: uppercase; text-align: center; width: 100%; padding: 0 20px; letter-spacing: 2px; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
+/* ІГРОВІ КНОПКИ */
+.action-buttons { display: flex; gap: 20px; width: 100%; padding: 30px; margin-top: auto; }
+.action-buttons button { flex: 1; padding: 40px 20px; font-size: 2rem; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+.btn-skip { background-color: var(--accent-red); color: white; }
+.btn-skip:hover { background-color: var(--accent-red-hover); transform: translateY(-5px); }
+.btn-skip.safe { background-color: var(--border-color); color: white; }
+.btn-correct { background-color: var(--accent-green); color: black; }
+.btn-correct:hover { background-color: var(--accent-green-hover); transform: translateY(-5px); }
+
+/* Екран завершення */
+.end-turn-container { text-align: center; align-items: center; margin-top: 50px; }
+.score-board { width: 100%; margin: 30px 0; display: flex; flex-direction: column; gap: 10px; }
+.score-row { display: flex; justify-content: space-between; padding: 20px; background-color: var(--bg-dark); border-radius: 15px; font-size: 1.5rem; font-weight: bold; border: 1px solid var(--border-color); }
+.next-team-announcement { color: var(--accent-yellow); margin-bottom: 30px; font-size: 1.8rem; }
+
+/* Хост та історія слів */
+.host-crown { margin-left: 8px; font-size: 1.2rem; }
+.read-only-settings { background-color: var(--panel-bg); padding: 20px; border-radius: 12px; color: var(--text-muted); font-size: 1.2rem; border: 1px dashed var(--border-color); }
+.read-only-settings strong { color: var(--text-main); }
+.guesser-view { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+
+.word-history { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 40px; max-height: 400px; overflow-y: auto; width: 100%; padding: 20px; }
+.history-pill { padding: 12px 24px; border-radius: 30px; font-size: 1.4rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.history-pill.correct { background-color: rgba(46, 213, 115, 0.2); color: var(--accent-green); border: 2px solid var(--accent-green); }
+.history-pill.skipped { background-color: rgba(255, 71, 87, 0.2); color: var(--accent-red); border: 2px solid var(--accent-red); }
+
+@keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
