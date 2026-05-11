@@ -1,51 +1,218 @@
 :root {
-  --bg-dark: #121218; --panel-bg: #1e1e26; --accent-red: #ff4757; --accent-red-hover: #ff6b81;
-  --accent-green: #2ed573; --accent-green-hover: #7bed9f; --accent-yellow: #ffc312; --text-main: #ffffff;
-  --text-muted: #8395a7; --border-color: #2f3542;
+  --bg-dark: #121218;
+  --panel-bg: #1e1e26;
+  --accent-red: #ff4757;
+  --accent-red-hover: #ff6b81;
+  --accent-green: #2ed573;
+  --accent-green-hover: #7bed9f;
+  --accent-yellow: #ffc312;
+  --text-main: #ffffff;
+  --text-muted: #8395a7;
+  --border-color: #2f3542;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body, html, #root { width: 100%; height: 100%; background-color: var(--bg-dark); color: var(--text-main); font-family: 'Segoe UI', Roboto, sans-serif; overflow-x: hidden; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-.app-wrapper { min-height: 100vh; width: 100%; display: flex; flex-direction: column; padding: 15px; }
-.container { background-color: var(--panel-bg); border-radius: 20px; padding: 25px; width: 100%; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+body, html, #root {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+}
 
-.logo-title { color: var(--accent-red); font-size: 3rem; text-align: center; font-weight: 900; letter-spacing: 2px; }
+.app-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+}
 
-input, select, textarea { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid var(--border-color); background-color: var(--bg-dark); color: white; font-size: 1.1rem; outline: none; }
-button { padding: 15px; border-radius: 12px; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
-button:active { transform: scale(0.95); }
+.container {
+  background-color: var(--panel-bg);
+  border-radius: 20px;
+  padding: 25px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.logo-title {
+  color: var(--accent-red);
+  font-size: 3rem;
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 15px;
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-dark);
+  color: white;
+  font-size: 1.1rem;
+  outline: none;
+}
+
+button {
+  padding: 15px;
+  border-radius: 12px;
+  border: none;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  text-transform: uppercase;
+}
+
+button:active {
+  transform: scale(0.95);
+}
 
 .primary-btn { background-color: var(--accent-red); color: white; }
 .secondary-btn { background-color: var(--border-color); color: white; }
 .mega-btn { background-color: var(--accent-yellow); color: black; font-size: 1.4rem; padding: 20px; }
 .ghost-btn { background-color: transparent; color: var(--text-muted); border: 2px solid var(--border-color); }
 
-.score-pill { background-color: rgba(46, 213, 115, 0.15); color: var(--accent-green); padding: 4px 12px; border-radius: 8px; font-size: 1rem; }
-.score-adjust { background-color: var(--border-color); color: white; padding: 2px 12px; border-radius: 6px; font-size: 1.2rem; }
+.score-pill {
+  background-color: rgba(46, 213, 115, 0.15);
+  color: var(--accent-green);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 1rem;
+}
 
-.team-card { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-dark); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); }
-.team-actions { display: flex; gap: 10px; align-items: center; }
+.score-adjust {
+  background-color: var(--border-color);
+  color: white;
+  padding: 2px 12px;
+  border-radius: 6px;
+  font-size: 1.2rem;
+}
 
-.game-mode { padding: 0; height: 100vh; }
-.game-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background-color: var(--panel-bg); border-bottom: 2px solid var(--border-color); }
+.team-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-dark);
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.team-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.input-group.inline {
+  display: flex;
+  gap: 10px;
+}
+
+.input-group.inline input { flex: 1; }
+.input-group.inline button { padding: 0 20px; font-size: 1.5rem; }
+
+/* ФІКС ПРОБІЛІВ ДЛЯ СПИСКУ РАХУНКІВ */
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: var(--bg-dark);
+  margin-bottom: 8px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  border: 1px solid var(--border-color);
+}
+
+.game-mode { padding: 0; height: 100vh; display: flex; flex-direction: column; }
+.game-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 15px 25px; 
+  background-color: var(--panel-bg); 
+  border-bottom: 2px solid var(--border-color); 
+}
 .timer-display { font-size: 3rem; font-weight: 900; }
 .timer-danger { color: var(--accent-red); }
+.timer-warning { color: var(--accent-yellow); font-size: 2rem; }
 
-.main-word { font-size: clamp(2.5rem, 8vw, 6rem); text-transform: uppercase; text-align: center; width: 100%; padding: 0 10px; word-break: normal; overflow-wrap: break-word; line-height: 1.1; }
+.game-board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
 
-.action-buttons { display: flex; gap: 15px; width: 100%; padding: 20px; margin-top: auto; }
+.main-word { 
+  font-size: clamp(2.5rem, 8vw, 6rem); 
+  text-transform: uppercase; 
+  text-align: center; 
+  width: 100%; 
+  padding: 0 10px; 
+  word-break: normal; 
+  overflow-wrap: break-word; 
+  line-height: 1.1; 
+}
+
+.action-buttons { 
+  display: flex; 
+  gap: 15px; 
+  width: 100%; 
+  padding: 20px; 
+  margin-top: auto; 
+}
 .action-buttons button { flex: 1; padding: 30px 10px; font-size: 1.8rem; border-radius: 15px; }
 .btn-skip { background-color: var(--accent-red); color: white; }
 .btn-correct { background-color: var(--accent-green); color: black; }
 
-.next-team-announcement { background-color: rgba(255, 195, 18, 0.1); padding: 20px; border-radius: 15px; border: 1px dashed var(--accent-yellow); margin: 15px 0; text-align: center; }
-.word-history { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 15px; max-height: 200px; overflow-y: auto; }
+.next-team-announcement { 
+  background-color: rgba(255, 195, 18, 0.1); 
+  padding: 20px; 
+  border-radius: 15px; 
+  border: 1px dashed var(--accent-yellow); 
+  margin: 15px 0; 
+  text-align: center; 
+}
+
+.word-history { 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 10px; 
+  justify-content: center; 
+  padding: 15px; 
+  max-height: 200px; 
+  overflow-y: auto; 
+}
 .history-pill { padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 1rem; }
 .history-pill.correct { background-color: rgba(46, 213, 115, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
 .history-pill.skipped { background-color: rgba(255, 71, 87, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
 
 ul { list-style: none; }
-li { padding: 10px; background-color: var(--bg-dark); margin-bottom: 5px; border-radius: 8px; }
+li { padding: 12px 15px; background-color: var(--bg-dark); margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); }
 .muted { color: var(--text-muted); font-size: 0.9rem; }
+.text-success { color: var(--accent-green); }
+.text-danger { color: var(--accent-red); }
 .divider { text-align: center; color: var(--text-muted); font-weight: bold; }
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.pulse { animation: pulse 2s infinite; }
