@@ -28,16 +28,16 @@ function App() {
     socket.on('roomUpdated', (data) => { setRoom(data); setLocalTimer(data.gameState.timeLeft); });
     socket.on('timerUpdate', setLocalTimer);
     socket.on('error', alert);
-    const pingInterval = setInterval(() => { fetch(`${BACKEND_URL}/ping`).catch(() => {}); }, 10 * 60 * 1000); 
-    return () => { socket.removeAllListeners(); clearInterval(pingInterval); };
+    const ping = setInterval(() => fetch(`${BACKEND_URL}/ping`).catch(() => {}), 10 * 60 * 1000); 
+    return () => { socket.removeAllListeners(); clearInterval(ping); };
   }, []);
 
   const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId });
   const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId });
-  const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
+  const updateSettings = (newS) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newS } });
   const handleCreateTeam = () => { if (newTeamName) { socket.emit('createTeam', { roomCode: room.id, teamName: newTeamName }); setNewTeamName(''); } };
-  const handleDeleteTeam = (teamId) => socket.emit('deleteTeam', { roomCode: room.id, teamId });
-  const handleAdjustScore = (teamId, amount) => socket.emit('adjustScore', { roomCode: room.id, teamId, amount });
+  const handleDeleteTeam = (id) => socket.emit('deleteTeam', { roomCode: room.id, teamId: id });
+  const handleAdjustScore = (id, amount) => socket.emit('adjustScore', { roomCode: room.id, teamId: id, amount });
 
   if (!room) {
     return (
@@ -58,22 +58,15 @@ function App() {
   const currentTeam = room.teams[room.gameState.currentTeamIndex];
   const myPlayerInfo = room.players.find(p => p.playerId === playerId);
 
-  // --- ЕКРАН ГРИ ---
   if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
     const isExplainer = room.gameState.currentExplainerId === socket.id;
     const isMyTeamPlaying = room.gameState.currentTeamId === myPlayerInfo?.teamId;
     const isLast = room.gameState.status === 'last_word';
-    
     return (
       <div className="app-wrapper game-mode">
         <div className="game-header">
-          <div className="team-info-top">
-            <span className="team-name">{currentTeam?.name}</span>
-            <span className="team-live-score">Рахунок: {currentTeam?.score}</span>
-          </div>
-          <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`}>
-            {isLast ? 'ОСТАННЄ' : localTimer}
-          </div>
+          <div className="team-info-top"><span className="team-name">{currentTeam?.name}</span><span className="team-live-score">Рахунок: {currentTeam?.score}</span></div>
+          <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`}>{isLast ? 'ОСТАННЄ' : localTimer}</div>
         </div>
         <div className="game-board">
           {isExplainer ? (
@@ -87,14 +80,8 @@ function App() {
             </>
           ) : (
             <div className="guesser-view">
-              <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
-                {isMyTeamPlaying ? 'Вгадуйте!' : `Грає: ${currentTeam?.name}`}
-              </h1>
-              <div className="word-history">
-                {room.gameState.roundHistory.map((item, idx) => (
-                  <span key={idx} className={`history-pill ${item.isCorrect ? 'correct' : 'skipped'}`}>{item.word}</span>
-                ))}
-              </div>
+              <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>{isMyTeamPlaying ? 'Вгадуйте!' : `Грає: ${currentTeam?.name}`}</h1>
+              <div className="word-history">{room.gameState.roundHistory.map((it, i) => (<span key={i} className={`history-pill ${it.isCorrect ? 'correct' : 'skipped'}`}>{it.word}</span>))}</div>
             </div>
           )}
         </div>
@@ -102,98 +89,63 @@ function App() {
     );
   }
 
-  // --- ЕКРАН ЗАВЕРШЕННЯ ХОДУ ---
   if (room.gameState.status === 'turn_ended') {
-    const nextTeam = room.teams[room.gameState.currentTeamIndex];
-    const nextTeamPlayers = room.players.filter(p => p.teamId === nextTeam?.id);
-    const nextExplainerIdx = (room.gameState.explainerIndices[nextTeam?.id] || 0) % nextTeamPlayers.length;
-    // Оскільки в команді 2 гравці, той хто не пояснює — відгадує
-    const nextGuesser = nextTeamPlayers[(nextExplainerIdx + 1) % nextTeamPlayers.length];
-
+    const nextT = room.teams[room.gameState.currentTeamIndex];
+    const nextTP = room.players.filter(p => p.teamId === nextT?.id);
+    const nextExpIdx = (room.gameState.explainerIndices[nextT?.id] || 0) % nextTP.length;
+    const nextGuesser = nextTP[(nextExpIdx + 1) % nextTP.length];
     return (
       <div className="app-wrapper">
         <div className="container end-turn-container">
-          <h1 className="text-danger">Хід завершено! 🏁</h1>
-          <div className="word-history" style={{ marginBottom: '20px' }}>
-            {room.gameState.roundHistory.map((item, idx) => (
-              <span key={idx} className={`history-pill ${item.isCorrect ? 'correct' : 'skipped'}`}>{item.word}</span>
-            ))}
-          </div>
+          <h1 className="text-danger">Хід завершено!</h1>
+          <div className="word-history" style={{ marginBottom: '20px' }}>{room.gameState.roundHistory.map((it, i) => (<span key={i} className={`history-pill ${it.isCorrect ? 'correct' : 'skipped'}`}>{it.word}</span>))}</div>
           <div className="score-board">
-            <h3>Поточний рахунок:</h3>
-            {[...room.teams].sort((a, b) => b.score - a.score).map(t => (
-              <div key={t.id} className="score-row"><span>{t.name}</span><strong className="text-success">{t.score}</strong></div>
-            ))}
+            <h3>Рахунок:</h3>
+            {[...room.teams].sort((a, b) => b.score - a.score).map(t => (<div key={t.id} className="score-row"><span>{t.name}</span><strong className="text-success">{t.score}</strong></div>))}
           </div>
           <div className="next-team-announcement">
-             <h3>Наступні: <span className="text-success">{nextTeam?.name}</span></h3>
-             <p className="muted">Відгадує: <strong>{nextGuesser?.name || '...'}</strong></p>
+            <h3>Наступні: <span className="text-success">{nextT?.name}</span></h3>
+            <p className="muted">Відгадує: <strong>{nextGuesser?.name || '...'}</strong></p>
           </div>
-          {isHost ? (
-            <>
-              <button className="mega-btn" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>▶ ПОЧАТИ ХІД</button>
-              <button className="ghost-btn" style={{ marginTop: '15px' }} onClick={() => socket.emit('endGame', { roomCode: room.id })}>В лобі</button>
-            </>
-          ) : <p className="muted">Чекаємо хоста...</p>}
+          {isHost ? (<><button className="mega-btn" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>ПОЧАТИ ХІД</button><button className="ghost-btn" style={{ marginTop: '15px' }} onClick={() => socket.emit('endGame', { roomCode: room.id })}>В лобі</button></>) : <p className="muted">Чекаємо хоста...</p>}
         </div>
       </div>
     );
   }
 
-  // --- ЛОБІ ТА НАЛАШТУВАННЯ ---
   return (
     <div className="app-wrapper">
       <div className="container">
         <div className="room-code-display">Код: <strong>{room.id}</strong></div>
-        {isHost && room.teams.length > 0 && <button className="mega-btn pulse" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>▶ ПОЧАТИ ГРУ</button>}
-        
+        {isHost && room.teams.length > 0 && <button className="mega-btn pulse" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>ПОЧАТИ ГРУ</button>}
         <div className="settings-panel">
           <h3>Налаштування {isHost ? '⚙️' : ''}</h3>
-          {isHost ? (
-            <>
-              <label>Час: <select value={room.settings.timer} onChange={e => updateSettings({ timer: Number(e.target.value) })}><option value="30">30 сек</option><option value="60">60 сек</option><option value="90">90 сек</option></select></label>
-              <label>Словник: <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })}><option value="easy">Лайт</option><option value="medium">Медіум</option><option value="hard">Хард</option><option value="gamer">Геймерський</option><option value="custom">Свій</option></select></label>
-              {room.settings.dictType === 'custom' && <textarea placeholder="Слова..." defaultValue={room.settings.customWords?.join(', ')} onBlur={e => updateSettings({ customWords: e.target.value.split(/[\s,]+/).filter(w => w) })}/>}
-            </>
-          ) : <div className="read-only-settings"><p>Час: <strong>{room.settings.timer}с</strong>, Словник: <strong>{room.settings.dictType}</strong></p></div>}
+          {isHost ? (<><label>Час: <select value={room.settings.timer} onChange={e => updateSettings({ timer: Number(e.target.value) })}><option value="30">30 сек</option><option value="60">60 сек</option><option value="90">90 сек</option></select></label><label>Словник: <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })}><option value="easy">Лайт</option><option value="medium">Медіум</option><option value="hard">Хард</option><option value="gamer">Геймерський</option><option value="custom">Свій</option></select></label></>) : <div className="read-only-settings"><p>Час: <strong>{room.settings.timer}с</strong>, Словник: <strong>{room.settings.dictType}</strong></p></div>}
         </div>
-
         <div className="teams-list">
           <h3>{room.teams.some(t => t.score !== 0) ? '🏆 Турнірна таблиця' : 'Команди'}</h3>
-          <div className="input-group inline"><input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} /><button onClick={handleCreateTeam}>+</button></div>
+          <div className="input-group inline"><input type="text" placeholder="Назва" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} /><button onClick={handleCreateTeam}>+</button></div>
           {[...room.teams].sort((a, b) => b.score - a.score).map(t => {
-            const teamPlayers = room.players.filter(p => p.teamId === t.id);
-            const isFull = teamPlayers.length >= 2;
+            const tp = room.players.filter(p => p.teamId === t.id);
             return (
               <div key={t.id} className="team-card">
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span>{t.name} <span className="muted">({teamPlayers.length}/2)</span></span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px' }}>
-                        {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
-                        <strong className="score-pill">{t.score} балів</strong>
-                        {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
-                    </div>
+                  <span>{t.name} <span className="muted">({tp.length}/2)</span></span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px' }}>
+                    {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
+                    <strong className="score-pill">{t.score} балів</strong>
+                    {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
+                  </div>
                 </div>
                 <div className="team-actions">
-                  {myPlayerInfo?.teamId === t.id ? <span className="text-success">Твоя</span> : !isFull ? <button className="join-btn" onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Вхід</button> : <span className="muted">Full</span>}
+                  {myPlayerInfo?.teamId === t.id ? <span className="text-success">Твоя</span> : tp.length < 2 ? <button className="join-btn" onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Вхід</button> : <span className="muted">Full</span>}
                   {isHost && <button className="delete-btn" onClick={() => handleDeleteTeam(t.id)}>❌</button>}
                 </div>
               </div>
             );
           })}
         </div>
-
-        <div className="players-list">
-          <h3>Гравці</h3>
-          <ul>
-            {room.players.map(p => (
-              <li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5 }}>
-                {p.name} {p.playerId === room.hostId && "👑"} 
-                <span className="muted">{room.teams.find(t => t.id === p.teamId) ? ` (${room.teams.find(t => t.id === p.teamId).name})` : ''}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <div className="players-list"><h3>Гравці</h3><ul>{room.players.map(p => (<li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5 }}>{p.name} {p.playerId === room.hostId && "👑"}<span className="muted">{room.teams.find(t => t.id === p.teamId) ? ` (${room.teams.find(t => t.id === p.teamId).name})` : ''}</span></li>))}</ul></div>
       </div>
     </div>
   );
