@@ -6,7 +6,6 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
-// Ендпоінт-пінгвалка, щоб Render не засинав
 app.get('/ping', (req, res) => {
   res.status(200).send('pong');
 });
@@ -15,16 +14,14 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = {};
-const MAX_ROOMS = 100; // Ліміт на кількість кімнат
-const ROOM_TIMEOUT = 2 * 60 * 60 * 1000; // 2 години (час життя неактивної кімнати)
+const MAX_ROOMS = 100; 
+const ROOM_TIMEOUT = 2 * 60 * 60 * 1000; 
 const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
 
-// Автоматичне очищення мертвих кімнат кожні 30 хвилин
 setInterval(() => {
   const now = Date.now();
   for (const code in rooms) {
     if (now - rooms[code].lastActive > ROOM_TIMEOUT) {
-      console.log(`Кімната ${code} видалена через неактивність (таймаут)`);
       delete rooms[code];
     }
   }
@@ -58,9 +55,9 @@ io.on('connection', (socket) => {
     const roomCode = generateRoomCode();
     rooms[roomCode] = {
       id: roomCode,
-      hostId: socket.id,
+      hostId: playerId, // ТЕПЕР ХОСТ ПРИВ'ЯЗАНИЙ ДО СТАБІЛЬНОГО ID
       lastActive: Date.now(),
-      players: [{ id: socket.id, playerId, name: playerName, teamId: null }],
+      players: [{ id: socket.id, playerId, name: playerName, teamId: null, online: true }], // ДОДАНО ONLINE
       teams: [],
       settings: { timer: 60, dictType: 'medium', customWords: [] },
       gameState: { 
@@ -88,19 +85,17 @@ io.on('connection', (socket) => {
       if (existingPlayer) {
         // Гравець перезайшов
         existingPlayer.id = socket.id;
-        existingPlayer.name = playerName; // На випадок якщо він змінив нік
-        if (room.hostId === existingPlayer.id) {
-            // Якщо хост оновив сторінку, старий socket.id вже недійсний. 
-            // Хоча логіка disconnect могла передати хоста іншому, 
-            // залишимо як є, бо відвалювання обробляється нижче
-        }
+        existingPlayer.name = playerName;
+        existingPlayer.online = true; // Знову в мережі
       } else {
         // Абсолютно новий гравець
-        room.players.push({ id: socket.id, playerId, name: playerName, teamId: null });
+        room.players.push({ id: socket.id, playerId, name: playerName, teamId: null, online: true });
       }
 
-      // Якщо в кімнаті раптом немає хоста (наприклад, всі виходили), призначаємо
-      if (!room.hostId) room.hostId = socket.id;
+      // Якщо хоста взагалі немає, або поточний хост оффлайн — передаємо корону
+      if (!room.hostId || !room.players.find(p => p.playerId === room.hostId && p.online)) {
+        room.hostId = playerId;
+      }
       
       socket.join(roomCode);
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
@@ -110,17 +105,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Ми не видаляємо гравця з room.players, бо він може перезайти завдяки playerId.
-    // Але якщо вийшов хост — передаємо корону комусь, хто зараз активний (кому належить інший socket.id).
     for (const code in rooms) {
       const room = rooms[code];
-      const pIndex = room.players.findIndex(p => p.id === socket.id);
-      if (pIndex !== -1) {
-        if (room.hostId === socket.id) {
-          // Шукаємо іншого гравця (по socket.id), щоб дати йому хоста
-          const nextHost = room.players.find(p => p.id !== socket.id);
-          room.hostId = nextHost ? nextHost.id : null;
+      const player = room.players.find(p => p.id === socket.id);
+      
+      if (player) {
+        player.online = false; // Позначаємо, що гравець відвалився
+        
+        // Якщо відвалився ХОСТ — намагаємося передати корону наступному ОНЛАЙН гравцю
+        if (room.hostId === player.playerId) {
+          const nextHost = room.players.find(p => p.playerId !== player.playerId && p.online);
+          room.hostId = nextHost ? nextHost.playerId : null;
         }
+        
         io.to(code).emit('roomUpdated', getSafeRoom(room));
         break;
       }
@@ -128,12 +125,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('updateSettings', ({ roomCode, settings }) => {
-    const room = rooms[roomCode];
-    if (room && room.hostId === socket.id) {
+    // Всюди, де потрібен захист хоста, тепер перевіряємо по playerId
+    const player = rooms[roomCode]?.players.find(p => p.id === socket.id);
+    if (rooms[roomCode] && player && rooms[roomCode].hostId === player.playerId) {
       touchRoom(roomCode);
-      room.settings = { ...room.settings, ...settings };
-      room.gameState.usedWords = [];
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      rooms[roomCode].settings = { ...rooms[roomCode].settings, ...settings };
+      rooms[roomCode].gameState.usedWords = [];
+      io.to(roomCode).emit('roomUpdated', getSafeRoom(rooms[roomCode]));
     }
   });
 
@@ -165,14 +163,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('deleteTeam', ({ roomCode, teamId }) => {
-    const room = rooms[roomCode];
-    if (room && room.hostId === socket.id) {
+    const player = rooms[roomCode]?.players.find(p => p.id === socket.id);
+    if (rooms[roomCode] && player && rooms[roomCode].hostId === player.playerId) {
       touchRoom(roomCode);
-      room.teams = room.teams.filter(t => t.id !== teamId);
-      room.players.forEach(p => {
+      rooms[roomCode].teams = rooms[roomCode].teams.filter(t => t.id !== teamId);
+      rooms[roomCode].players.forEach(p => {
         if (p.teamId === teamId) p.teamId = null;
       });
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      io.to(roomCode).emit('roomUpdated', getSafeRoom(rooms[roomCode]));
     }
   });
 
@@ -195,7 +193,9 @@ io.on('connection', (socket) => {
 
   socket.on('startTurn', ({ roomCode }) => {
     const room = rooms[roomCode];
-    if (!room || room.hostId !== socket.id) return;
+    const player = room?.players.find(p => p.id === socket.id);
+    if (!room || !player || room.hostId !== player.playerId) return;
+    
     touchRoom(roomCode);
 
     if (room.teams.length === 0) return socket.emit('error', 'Створіть команди');
@@ -219,7 +219,7 @@ io.on('connection', (socket) => {
     const teamPlayers = room.players.filter(p => p.teamId === currentTeam.id);
     let expIdx = room.gameState.explainerIndices[currentTeam.id] || 0;
     if (expIdx >= teamPlayers.length) expIdx = 0;
-    room.gameState.currentExplainerId = teamPlayers[expIdx].id;
+    room.gameState.currentExplainerId = teamPlayers[expIdx].id; // ТУТ ЗАЛИШАЄМО socket.id, бо це для активного з'єднання
 
     room.gameState.currentWord = getRandomWord(room);
     io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
@@ -240,7 +240,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (room && room.gameState.status === 'playing') {
       touchRoom(roomCode);
-      if (room.gameState.currentExplainerId !== socket.id) return; // Анти-чіт
+      if (room.gameState.currentExplainerId !== socket.id) return;
 
       const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
       if (isCorrect) team.score += 1; else team.score -= 1;
@@ -259,7 +259,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (room && room.gameState.status === 'last_word') {
       touchRoom(roomCode);
-      if (room.gameState.currentExplainerId !== socket.id) return; // Анти-чіт
+      if (room.gameState.currentExplainerId !== socket.id) return;
 
       const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
       if (isCorrect) team.score += 1;
@@ -278,7 +278,8 @@ io.on('connection', (socket) => {
 
   socket.on('endGame', ({ roomCode }) => {
     const room = rooms[roomCode];
-    if (room && room.hostId === socket.id) {
+    const player = room?.players.find(p => p.id === socket.id);
+    if (room && player && room.hostId === player.playerId) {
       touchRoom(roomCode);
       if (room.timerInterval) clearInterval(room.timerInterval);
       room.gameState.status = 'lobby';
