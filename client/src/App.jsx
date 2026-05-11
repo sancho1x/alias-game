@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
-const socket = io('https://alias-game-2oys.onrender.com');
+// ТУТ МАЄ БУТИ ТВОЄ ПОСИЛАННЯ НА RENDER
+const socket = io('https://alias-game-2oys.onrender.com'); 
 
 function App() {
   const [playerName, setPlayerName] = useState('');
@@ -124,7 +125,8 @@ function App() {
 
           <div className="score-board">
             <h3>Поточний рахунок:</h3>
-            {room.teams.map(t => (
+            {/* На екрані результатів теж сортуємо, щоб було видно лідера */}
+            {[...room.teams].sort((a, b) => b.score - a.score).map(t => (
               <div key={t.id} className="score-row">
                 <span>{t.name}</span>
                 <strong className="text-success">{t.score}</strong>
@@ -200,19 +202,36 @@ function App() {
         </div>
 
         <div className="teams-list">
-          <h3>Команди</h3>
+          {/* Динамічний заголовок: якщо є хоча б 1 бал, пишемо "Турнірна таблиця" */}
+          <h3>{room.teams.some(t => t.score !== 0) ? '🏆 Турнірна таблиця' : 'Команди'}</h3>
+          
           <div className="input-group inline">
             <input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} />
             <button onClick={handleCreateTeam}>+</button>
           </div>
-          {room.teams.map(t => {
+          
+          {/* СОРТУВАННЯ: розставляє команди від найкрутіших до найслабших */}
+          {[...room.teams].sort((a, b) => b.score - a.score).map(t => {
             const teamPlayers = room.players.filter(p => p.teamId === t.id);
             const isFull = teamPlayers.length >= 2;
             const amIInThisTeam = myPlayerInfo?.teamId === t.id;
 
             return (
               <div key={t.id} className="team-card">
-                <span>{t.name} <span className="muted">({teamPlayers.length}/2)</span></span>
+                <span>
+                  {t.name} <span className="muted">({teamPlayers.length}/2)</span>
+                  {/* Красивий бейдж з рахунком команди */}
+                  <strong style={{ 
+                    marginLeft: '12px', 
+                    color: 'var(--accent-green)', 
+                    backgroundColor: 'rgba(46, 213, 115, 0.15)',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}>
+                    {t.score} балів
+                  </strong>
+                </span>
                 
                 <div className="team-actions">
                   {amIInThisTeam ? (
