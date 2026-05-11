@@ -2,8 +2,21 @@ import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
-// ТУТ МАЄ БУТИ ТВОЄ ПОСИЛАННЯ НА RENDER
-const socket = io('https://alias-game-2oys.onrender.com'); 
+// ПОСИЛАННЯ НА ТВІЙ БЕКЕНД
+const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
+const socket = io(BACKEND_URL);
+
+// Генерація та отримання постійного ID гравця (щоб не вилітати при оновленні сторінки)
+const getPersistentId = () => {
+  let id = localStorage.getItem('alias_player_id');
+  if (!id) {
+    id = 'p_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('alias_player_id', id);
+  }
+  return id;
+};
+
+const playerId = getPersistentId();
 
 function App() {
   const [playerName, setPlayerName] = useState('');
@@ -17,11 +30,20 @@ function App() {
     socket.on('roomUpdated', (data) => { setRoom(data); setLocalTimer(data.gameState.timeLeft); });
     socket.on('timerUpdate', setLocalTimer);
     socket.on('error', alert);
-    return () => socket.removeAllListeners();
+
+    // Анти-Сон: пінг-понг з бекендом, щоб Render не засинав
+    const pingInterval = setInterval(() => {
+      fetch(`${BACKEND_URL}/ping`).catch(() => {});
+    }, 10 * 60 * 1000); // 10 хвилин
+
+    return () => {
+      socket.removeAllListeners();
+      clearInterval(pingInterval);
+    };
   }, []);
 
-  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName });
-  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName });
+  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId });
+  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId });
   
   const updateSettings = (newSettings) => {
     socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
@@ -55,7 +77,7 @@ function App() {
 
   const isHost = room.hostId === socket.id;
   const currentTeam = room.teams[room.gameState.currentTeamIndex];
-  const myPlayerInfo = room.players.find(p => p.id === socket.id);
+  const myPlayerInfo = room.players.find(p => p.playerId === playerId);
 
   // --- ЕКРАН ГРИ ---
   if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
@@ -125,7 +147,6 @@ function App() {
 
           <div className="score-board">
             <h3>Поточний рахунок:</h3>
-            {/* На екрані результатів теж сортуємо, щоб було видно лідера */}
             {[...room.teams].sort((a, b) => b.score - a.score).map(t => (
               <div key={t.id} className="score-row">
                 <span>{t.name}</span>
@@ -202,7 +223,6 @@ function App() {
         </div>
 
         <div className="teams-list">
-          {/* Динамічний заголовок: якщо є хоча б 1 бал, пишемо "Турнірна таблиця" */}
           <h3>{room.teams.some(t => t.score !== 0) ? '🏆 Турнірна таблиця' : 'Команди'}</h3>
           
           <div className="input-group inline">
@@ -210,7 +230,6 @@ function App() {
             <button onClick={handleCreateTeam}>+</button>
           </div>
           
-          {/* СОРТУВАННЯ: розставляє команди від найкрутіших до найслабших */}
           {[...room.teams].sort((a, b) => b.score - a.score).map(t => {
             const teamPlayers = room.players.filter(p => p.teamId === t.id);
             const isFull = teamPlayers.length >= 2;
@@ -220,7 +239,6 @@ function App() {
               <div key={t.id} className="team-card">
                 <span>
                   {t.name} <span className="muted">({teamPlayers.length}/2)</span>
-                  {/* Красивий бейдж з рахунком команди */}
                   <strong style={{ 
                     marginLeft: '12px', 
                     color: 'var(--accent-green)', 
@@ -256,7 +274,7 @@ function App() {
           <h3>Гравці</h3>
           <ul>
             {room.players.map(p => (
-              <li key={p.id}>
+              <li key={p.playerId}>
                 {p.name} {p.id === room.hostId && <span className="host-crown" title="Хост кімнати">👑</span>} 
                 <span className="muted">
                   {room.teams.find(t => t.id === p.teamId) ? ` (${room.teams.find(t => t.id === p.teamId).name})` : ''}
