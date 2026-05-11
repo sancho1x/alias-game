@@ -6,7 +6,6 @@ import './App.css';
 const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
 const socket = io(BACKEND_URL);
 
-// Генерація та отримання постійного ID гравця (щоб не вилітати при оновленні сторінки)
 const getPersistentId = () => {
   let id = localStorage.getItem('alias_player_id');
   if (!id) {
@@ -31,10 +30,9 @@ function App() {
     socket.on('timerUpdate', setLocalTimer);
     socket.on('error', alert);
 
-    // Анти-Сон: пінг-понг з бекендом, щоб Render не засинав
     const pingInterval = setInterval(() => {
       fetch(`${BACKEND_URL}/ping`).catch(() => {});
-    }, 10 * 60 * 1000); // 10 хвилин
+    }, 10 * 60 * 1000); 
 
     return () => {
       socket.removeAllListeners();
@@ -75,7 +73,8 @@ function App() {
     );
   }
 
-  const isHost = room.hostId === socket.id;
+  // ТЕПЕР ХОСТ ПЕРЕВІРЯЄТЬСЯ ПО СТАБІЛЬНОМУ ID
+  const isHost = room.hostId === playerId;
   const currentTeam = room.teams[room.gameState.currentTeamIndex];
   const myPlayerInfo = room.players.find(p => p.playerId === playerId);
 
@@ -273,9 +272,13 @@ function App() {
         <div className="players-list">
           <h3>Гравці</h3>
           <ul>
+            {/* ТУТ КОРОНА МАЛЮЄТЬСЯ ПО playerId */}
             {room.players.map(p => (
               <li key={p.playerId}>
-                {p.name} {p.id === room.hostId && <span className="host-crown" title="Хост кімнати">👑</span>} 
+                <span style={{ color: p.online ? 'inherit' : 'var(--text-muted)' }}>
+                  {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост кімнати">👑</span>} 
+                  {!p.online && " (не в мережі)"}
+                </span>
                 <span className="muted">
                   {room.teams.find(t => t.id === p.teamId) ? ` (${room.teams.find(t => t.id === p.teamId).name})` : ''}
                 </span>
