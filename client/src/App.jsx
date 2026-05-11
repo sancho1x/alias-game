@@ -62,7 +62,7 @@ function App() {
     return (
       <div className="app-wrapper">
         <div className="container">
-          <h1 className="logo-title">ALIAS UA</h1>
+          <h1 className="logo-title">ЕЛІАС</h1>
           <input type="text" placeholder="Нікнейм" value={playerName} onChange={e => setPlayerName(e.target.value)} />
           <button className="primary-btn" onClick={handleCreateRoom}>Створити кімнату</button>
           <div className="divider">АБО</div>
