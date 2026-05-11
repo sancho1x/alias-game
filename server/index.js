@@ -5,14 +5,31 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
+
+// Ендпоінт-пінгвалка, щоб Render не засинав
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = {};
-const MAX_ROOMS = 100; // Ліміт на кількість кімнат для захисту від спаму
+const MAX_ROOMS = 100; // Ліміт на кількість кімнат
+const ROOM_TIMEOUT = 2 * 60 * 60 * 1000; // 2 години (час життя неактивної кімнати)
 const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
 
-// ОНОВЛЕНІ БАЗИ СЛІВ (додано medium)
+// Автоматичне очищення мертвих кімнат кожні 30 хвилин
+setInterval(() => {
+  const now = Date.now();
+  for (const code in rooms) {
+    if (now - rooms[code].lastActive > ROOM_TIMEOUT) {
+      console.log(`Кімната ${code} видалена через неактивність (таймаут)`);
+      delete rooms[code];
+    }
+  }
+}, 30 * 60 * 1000);
+
 const dictionaries = {
   easy: "Яблуко Телевізор Кіт Стілець Молоко Поїзд Сонце Книга Машина Огірок Кросівки Телефон Море Літак Дерево Вікно Собака Двері Ручка Зошит Стіл Шафа Лампа Квітка Трава Небо Хмара Дощ Сніг Зима Літо Осінь Весна Річка Озеро Гора Ліс Птах Риба Хліб Масло Сир Ковбаса Чай Кава Вода Сік Цукор Сіль Перець Ложка Вилка Ніж Тарілка Чашка Каструля Сковорідка Диван Ліжко Подушка Ковдра Рушник Мило Шампунь Щітка Паста Дзеркало Гребінець Ножиці Папір Олівець Гумка Фарби Пензлик Клей Картон Пластилін Лялька М'яч Кубики Конструктор Велосипед Самокат Ролики Ковзани Лижі Санчата Рюкзак Сумка Гаманець Окуляри Годинник Капелюх Шапка Шарф Рукавиці Куртка Пальто Светр Футболка Майка Сорочка Штани Джинси Шорти Спідниця Сукня Шкарпетки Взуття Чоботи Туфлі Капці Брат Сестра Мама Тато Бабуся Дідусь Дядько Тітка Син Дочка Друг Сусід Вчитель Лікар Водій Продавець Кухар Перукар Будівельник Пожежник Поліцейський Художник Співак Актор Танцюрист Спортсмен Кіно Театр Цирк Музей Парк Зоопарк Лікарня Школа Садок Магазин Ринок Аптека Банк Пошта Ресторан Кафе Вокзал Аеропорт Завод Фабрика Місто Село Вулиця Площа Міст Дорога Світлофор Зупинка Магазин Кінотеатр Гітара Піаніно Скрипка Барабан Флейта Труба Баян Акордеон Мікрофон Навушники Камера Планшет Комп'ютер Мишка Клавіатура Монітор Принтер Роутер Флешка Батарейка Зарядка Дріт Розетка Вимикач Лампочка Свічка Сірники Запальничка Дрова Вугілля Вогонь Дим Попіл Пил Бруд Сміття Віник Швабра Відро Ганчірка Пилосос Праска Дошка Гвіздок Молоток Викрутка Кліщі Пилка Сокира Лопата Граблі Сапа Ліхтар Сходи Мотузка Нитки Голка Ножиці Тканина Ґудзик Блискавка Кишеня Комір Рукав Капюшон Пояс Ремінь Каблучка Кольє Сережки Браслєт Корона Обличчя Око Ніс Вухо Губа Зуб Язик Волосся Голова Шия Плече Рука Спина Живіт Нога Коліно Ступня Палець Ніготь Шкіра Кров Серце Мозок Шлунок Печінка Нирка М'яз Кістка Суглоб Рана Шрам Ліки Пігулка Мазь Сироп Бинт Пластир Градусник Шприц Вата Спирт Йод Милиці Коляска Ліжко Диван Крісло Пуфик Стілець Табуретка Стіл Тумба Шафа Полиця Вішалка Дзеркало Килим Лінолеум Паркет Кахель Шпалери Фарба Клей Цегла Цемент Бетон Пісок Глина Камінь Скло Дерево Метал Залізо Мідь Алюміній Золото Срібло Свинець Олово Пластмаса Гума Картон Папір Плівка Тканина Шкіра Хутро Вовна Бавовна Шовк Льон Капрон".split(" "),
   medium: "Авангард Адекватність Ажіотаж Акваторія Акліматизація Алгоритм Альтернатива Амбіція Аналіз Аномалія Апетит Аристократ Арсенал Архітектура Асиметрія Асортимент Атмосфера Аудиторія Барикада Безмежність Біографія Блокнот Бульвар Вакансія Вакуум Вентиляція Вердикт Вертикаль Вібрація Візаж Вікторина Віртуальність Водоспад Габарит Галерея Гармонія Гастроном Генератор Генетика Гіпотеза Глобалізація Горизонт Гравітація Градація Грамота Декорація Делегат Демонстрація Депресія Десерт Дизайн Дилема Динаміка Дипломат Директор Дисципліна Діагноз Діалект Еволюція Екватор Екземпляр Екіпаж Економіка Екскурсія Експедиція Експеримент Експерт Еластичність Елемент Емоція Енергетика Ентузіазм Епідемія Епізод Ерудиція Естафета Етикет Ефект Ідеалізм Ілюзія Імунітет Інвалідність Інвентар Інвестиція Індивідуум Інженер Ініціатива Інновація Інстинкт Інтелект Інтервал Інтерв'ю Інтонація Інтуїція Іронія Кабінет Кандидат Капітал Карикатура Каталог Катастрофа Кваліфікація Кераміка Клімат Коаліція Колектив Комбінація Коментар Комерція Комітет Компанія Компенсація Комплекс Компроміс Конвеєр Конкурент Конспект Континент Контракт Контроль Конфлікт Концентрація Концепція Координата Коридор Корпорація Критерій Лабіринт Лабораторія Ландшафт Легенда Література Логіка Лояльність Магістраль Максимум Маніпуляція Марафон Маршрут Масштаб Матеріал Мелодія Менталітет Метафора Механізм Мінімум Моделювання Монолог Монумент Мотивація Музикант Навігація Натюрморт Неврастенія Нейтралітет Новатор Ностальгія Об'єктивність Облігація Оптимізм Орбіта Оригінал Орнамент Панорама Паралель Пасажир Патріот Пейзаж Периметр Персонаж Перспектива Песимізм Піраміда Планета Платформа Позиція Політика Полюс Потенціал Президент Премія Препарат Престиж Привілей Принцип Проблема Прогноз Програма Прогрес Проект Пропорція Професор Процес Психологія Публіка Радикал Радіус Реакція Реалізм Революція Регіон Регулятор Редактор Режисер Резерв Резолюція Результат Рекорд Ректор Релігія Репутація Ресурс Рефлекс Реформа Рецепт Ритміка Ритуал Рівновага Романтика Саботаж Санаторій Санкція Секретар Секунда Семінар Символ Симетрія Симптом Синтез Система Ситуація Скелет Скульптура Словник Солідарність Спектр Специфіка Спонсор Стабільність Стандарт Статистика Статус Стипендія Стратегія Структура Студент Суб'єктивність Суверенітет Сценарій Талант Темперамент Тенденція Теорема Терапія Територія Термін Технологія Тираж Товариш Традиція Траєкторія Трактор Транспорт Трансформація Тренінг Туризм Університет Фабрика Фактор Фантазія Факультет Фестиваль Фізика Філософія Фінанси Формула Фрагмент Фундамент Функція Характер Хімія Хірург Хроніка Художник Цензура Центр Цивілізація Чемпіон Шаблон Шедевр Шеренга Шрифт Штурман Екран Ювілей Юридичний".split(" "),
@@ -25,9 +42,15 @@ const getSafeRoom = (room) => {
   return safeRoom;
 };
 
+const touchRoom = (roomCode) => {
+  if (rooms[roomCode]) {
+    rooms[roomCode].lastActive = Date.now();
+  }
+};
+
 io.on('connection', (socket) => {
-  socket.on('createRoom', ({ playerName }) => {
-    // ЗАХИСТ ВІД ПЕРЕВАНТАЖЕННЯ (DDoS)
+  
+  socket.on('createRoom', ({ playerName, playerId }) => {
     if (Object.keys(rooms).length >= MAX_ROOMS) {
       return socket.emit('error', 'Сервери перевантажені! Досягнуто ліміту кімнат. Спробуйте пізніше.');
     }
@@ -36,9 +59,10 @@ io.on('connection', (socket) => {
     rooms[roomCode] = {
       id: roomCode,
       hostId: socket.id,
-      players: [{ id: socket.id, name: playerName, teamId: null }],
+      lastActive: Date.now(),
+      players: [{ id: socket.id, playerId, name: playerName, teamId: null }],
       teams: [],
-      settings: { timer: 60, dictType: 'medium', customWords: [] }, // За замовчуванням тепер Медіум
+      settings: { timer: 60, dictType: 'medium', customWords: [] },
       gameState: { 
         status: 'lobby', 
         currentTeamIndex: 0, 
@@ -54,32 +78,50 @@ io.on('connection', (socket) => {
     socket.emit('roomCreated', getSafeRoom(rooms[roomCode]));
   });
 
-  socket.on('joinRoom', ({ roomCode, playerName }) => {
+  socket.on('joinRoom', ({ roomCode, playerName, playerId }) => {
     const room = rooms[roomCode];
     if (room) {
-      room.players.push({ id: socket.id, name: playerName, teamId: null });
+      touchRoom(roomCode);
+      
+      const existingPlayer = room.players.find(p => p.playerId === playerId);
+      
+      if (existingPlayer) {
+        // Гравець перезайшов
+        existingPlayer.id = socket.id;
+        existingPlayer.name = playerName; // На випадок якщо він змінив нік
+        if (room.hostId === existingPlayer.id) {
+            // Якщо хост оновив сторінку, старий socket.id вже недійсний. 
+            // Хоча логіка disconnect могла передати хоста іншому, 
+            // залишимо як є, бо відвалювання обробляється нижче
+        }
+      } else {
+        // Абсолютно новий гравець
+        room.players.push({ id: socket.id, playerId, name: playerName, teamId: null });
+      }
+
+      // Якщо в кімнаті раптом немає хоста (наприклад, всі виходили), призначаємо
       if (!room.hostId) room.hostId = socket.id;
+      
       socket.join(roomCode);
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     } else {
-      socket.emit('error', 'Кімнату не знайдено');
+      socket.emit('error', 'Кімнату не знайдено або вона була видалена через неактивність.');
     }
   });
 
   socket.on('disconnect', () => {
+    // Ми не видаляємо гравця з room.players, бо він може перезайти завдяки playerId.
+    // Але якщо вийшов хост — передаємо корону комусь, хто зараз активний (кому належить інший socket.id).
     for (const code in rooms) {
       const room = rooms[code];
       const pIndex = room.players.findIndex(p => p.id === socket.id);
       if (pIndex !== -1) {
-        room.players.splice(pIndex, 1);
-        if (room.players.length === 0) {
-          delete rooms[code]; 
-        } else {
-          if (room.hostId === socket.id) {
-            room.hostId = room.players[0].id;
-          }
-          io.to(code).emit('roomUpdated', getSafeRoom(room));
+        if (room.hostId === socket.id) {
+          // Шукаємо іншого гравця (по socket.id), щоб дати йому хоста
+          const nextHost = room.players.find(p => p.id !== socket.id);
+          room.hostId = nextHost ? nextHost.id : null;
         }
+        io.to(code).emit('roomUpdated', getSafeRoom(room));
         break;
       }
     }
@@ -88,6 +130,7 @@ io.on('connection', (socket) => {
   socket.on('updateSettings', ({ roomCode, settings }) => {
     const room = rooms[roomCode];
     if (room && room.hostId === socket.id) {
+      touchRoom(roomCode);
       room.settings = { ...room.settings, ...settings };
       room.gameState.usedWords = [];
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
@@ -97,6 +140,7 @@ io.on('connection', (socket) => {
   socket.on('createTeam', ({ roomCode, teamName }) => {
     const room = rooms[roomCode];
     if (room) {
+      touchRoom(roomCode);
       const newTeam = { id: Date.now().toString(), name: teamName, score: 0 };
       room.teams.push(newTeam);
       room.gameState.explainerIndices[newTeam.id] = 0;
@@ -107,9 +151,10 @@ io.on('connection', (socket) => {
   socket.on('joinTeam', ({ roomCode, teamId }) => {
     const room = rooms[roomCode];
     if (room) {
+      touchRoom(roomCode);
       const player = room.players.find(p => p.id === socket.id);
-      
       const playersInTeam = room.players.filter(p => p.teamId === teamId);
+      
       if (player && player.teamId !== teamId && playersInTeam.length >= 2) {
         return socket.emit('error', 'Команда вже заповнена (максимум 2 гравці)');
       }
@@ -122,6 +167,7 @@ io.on('connection', (socket) => {
   socket.on('deleteTeam', ({ roomCode, teamId }) => {
     const room = rooms[roomCode];
     if (room && room.hostId === socket.id) {
+      touchRoom(roomCode);
       room.teams = room.teams.filter(t => t.id !== teamId);
       room.players.forEach(p => {
         if (p.teamId === teamId) p.teamId = null;
@@ -150,6 +196,7 @@ io.on('connection', (socket) => {
   socket.on('startTurn', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room || room.hostId !== socket.id) return;
+    touchRoom(roomCode);
 
     if (room.teams.length === 0) return socket.emit('error', 'Створіть команди');
     for (const team of room.teams) {
@@ -192,9 +239,8 @@ io.on('connection', (socket) => {
   socket.on('nextWord', ({ roomCode, isCorrect }) => {
     const room = rooms[roomCode];
     if (room && room.gameState.status === 'playing') {
-      
-      // ЗАХИСТ ВІД ЧІТЕРІВ: Тільки поточний ведучий може надіслати цей запит
-      if (room.gameState.currentExplainerId !== socket.id) return;
+      touchRoom(roomCode);
+      if (room.gameState.currentExplainerId !== socket.id) return; // Анти-чіт
 
       const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
       if (isCorrect) team.score += 1; else team.score -= 1;
@@ -212,9 +258,8 @@ io.on('connection', (socket) => {
   socket.on('lastWordResult', ({ roomCode, isCorrect }) => {
     const room = rooms[roomCode];
     if (room && room.gameState.status === 'last_word') {
-
-      // ЗАХИСТ ВІД ЧІТЕРІВ
-      if (room.gameState.currentExplainerId !== socket.id) return;
+      touchRoom(roomCode);
+      if (room.gameState.currentExplainerId !== socket.id) return; // Анти-чіт
 
       const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
       if (isCorrect) team.score += 1;
@@ -234,6 +279,7 @@ io.on('connection', (socket) => {
   socket.on('endGame', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room && room.hostId === socket.id) {
+      touchRoom(roomCode);
       if (room.timerInterval) clearInterval(room.timerInterval);
       room.gameState.status = 'lobby';
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
@@ -241,4 +287,5 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(3001, () => console.log('Server 3001'));
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => console.log(`Server 3001`));
