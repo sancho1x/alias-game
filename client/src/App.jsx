@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
+// 🚨🚨 ВСТАВ СВІЙ CLIENT ID З TWITCH DEVELOPER CONSOLE ТУТ 🚨🚨
+const TWITCH_CLIENT_ID = 'fh66pb8rdh6mr32melibkiybfvhipr'; 
+const REDIRECT_URI = window.location.origin;
+
 const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
 const socket = io(BACKEND_URL);
 
@@ -18,12 +22,43 @@ const playerId = getPersistentId();
 
 function App() {
   const [playerName, setPlayerName] = useState('');
+  const [isTwitchAuth, setIsTwitchAuth] = useState(false);
   const [roomCode, setRoomCode] = useState('');
   const [room, setRoom] = useState(null);
   const [newTeamName, setNewTeamName] = useState('');
   const [localTimer, setLocalTimer] = useState(0);
 
   useEffect(() => {
+    // ПЕРЕВІРКА TWITCH АВТОРИЗАЦІЇ
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      window.history.replaceState(null, '', window.location.pathname); // Чистимо лінк
+      
+      fetch('https://api.twitch.tv/helix/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Client-Id': TWITCH_CLIENT_ID
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data.length > 0) {
+           const twitchName = data.data[0].display_name;
+           localStorage.setItem('alias_twitch_name', twitchName);
+           setPlayerName(twitchName);
+           setIsTwitchAuth(true);
+        }
+      }).catch(err => console.error("Помилка Twitch", err));
+    } else {
+       const savedTwitchName = localStorage.getItem('alias_twitch_name');
+       if (savedTwitchName) {
+           setPlayerName(savedTwitchName);
+           setIsTwitchAuth(true);
+       }
+    }
+
     socket.on('roomCreated', setRoom);
     socket.on('roomUpdated', (data) => { 
       setRoom(data); 
@@ -42,8 +77,19 @@ function App() {
     };
   }, []);
 
-  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId });
-  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId });
+  const handleTwitchLogin = () => {
+    const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token`;
+    window.location.href = url;
+  };
+
+  const handleTwitchLogout = () => {
+    localStorage.removeItem('alias_twitch_name');
+    setPlayerName('');
+    setIsTwitchAuth(false);
+  };
+
+  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId, isTwitchAuth });
+  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId, isTwitchAuth });
   const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
   
   const handleCreateTeam = () => { if (newTeamName) { socket.emit('createTeam', { roomCode: room.id, teamName: newTeamName }); setNewTeamName(''); } };
@@ -57,11 +103,25 @@ function App() {
       <div className="app-wrapper">
         <div className="container">
           <h1 className="logo-title">ALIAS UA</h1>
-          <input type="text" placeholder="Нікнейм" value={playerName} onChange={e => setPlayerName(e.target.value)} />
-          <button className="primary-btn" onClick={handleCreateRoom}>Створити кімнату</button>
+          
+          {isTwitchAuth ? (
+            <div style={{ textAlign: 'center', backgroundColor: '#3d4554', padding: '15px', borderRadius: '12px' }}>
+              <p style={{ marginBottom: '10px' }}>Увійшли через Twitch як: <strong style={{ color: '#a970ff' }}>{playerName}</strong></p>
+              <button className="ghost-btn" style={{ padding: '8px 15px', fontSize: '0.9rem' }} onClick={handleTwitchLogout}>Вийти з Twitch</button>
+            </div>
+          ) : (
+            <>
+              <input type="text" placeholder="Нікнейм" value={playerName} onChange={e => setPlayerName(e.target.value)} />
+              <button style={{ backgroundColor: '#a970ff', color: 'white' }} onClick={handleTwitchLogin}>📺 Увійти через Twitch</button>
+            </>
+          )}
+
+          <div className="divider">Створити гру</div>
+          <button className="primary-btn" onClick={handleCreateRoom} disabled={!playerName}>Створити кімнату</button>
+          
           <div className="divider">АБО</div>
-          <input type="text" placeholder="Код" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
-          <button className="secondary-btn" onClick={handleJoinRoom}>Увійти</button>
+          <input type="text" placeholder="Введіть код" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
+          <button className="secondary-btn" onClick={handleJoinRoom} disabled={!playerName || !roomCode}>Увійти в кімнату</button>
         </div>
       </div>
     );
@@ -78,6 +138,7 @@ function App() {
         {room.players.map(p => (
           <li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5 }}>
             <span style={{ color: p.online ? 'inherit' : 'var(--text-muted)' }}>
+              {p.isTwitch && <span style={{ marginRight: '5px' }} title="Авторизований через Twitch">📺</span>}
               {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
               {!p.online && " (не в мережі)"}
             </span>
@@ -155,9 +216,15 @@ function App() {
             <>
               <div className="word-container"><h1 className="main-word">{room.gameState.currentWord}</h1></div>
               <div className="action-buttons">
-                {!isLast && <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>}
+                {/* МІНУСОВА КНОПКА ЗАВЖДИ ЗЛІВА */}
+                {!isLast ? (
+                  <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>
+                ) : (
+                  <button className="secondary-btn" onClick={() => socket.emit('lastWordResult', { roomCode: room.id, isCorrect: false })}>Не вгадали (0)</button>
+                )}
+                
+                {/* ПЛЮСОВА КНОПКА ЗАВЖДИ СПРАВА */}
                 <button className="btn-correct" onClick={() => socket.emit(isLast ? 'lastWordResult' : 'nextWord', { roomCode: room.id, isCorrect: true })}>Вгадали (+1)</button>
-                {isLast && <button className="secondary-btn" onClick={() => socket.emit('lastWordResult', { roomCode: room.id, isCorrect: false })}>Не вгадали (0)</button>}
               </div>
             </>
           ) : (
@@ -247,7 +314,6 @@ function App() {
   const currentLap = Math.floor(room.gameState.turnsTaken / (room.teams.length * 2 || 1)) + 1;
   const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
   
-  // Якщо ми повернулися в лобі під час гри, показуємо кнопку Продовжити
   const isGamePausedInLobby = room.gameState.pausedState === 'active_turn';
 
   return (
@@ -261,7 +327,7 @@ function App() {
         {isHost && room.teams.length > 0 && (
           isGamePausedInLobby ? (
             <button className="mega-btn pulse" style={{ backgroundColor: 'var(--accent-green)' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id })}>
-              ▶ ПРОДОВЖИТИ ГРУ (Таймер збережено)
+              ▶ ПРОДОВЖИТИ ГРУ
             </button>
           ) : (
             <button className="mega-btn pulse" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>
@@ -274,6 +340,17 @@ function App() {
           <h3>Налаштування {isHost ? '⚙️' : '(Тільки хост)'}</h3>
           {isHost ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+              
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: 'rgba(169, 112, 255, 0.1)', borderRadius: '8px', border: '1px solid #a970ff' }}>
+                <input 
+                  type="checkbox" 
+                  checked={room.settings.requireTwitchAuth} 
+                  onChange={e => updateSettings({ requireTwitchAuth: e.target.checked })} 
+                  style={{ width: 'auto' }}
+                />
+                Обов'язковий вхід через Twitch
+              </label>
+
               <label>Час раунду: 
                 <select value={room.settings.timer} onChange={e => updateSettings({ timer: Number(e.target.value) })} disabled={isGamePausedInLobby} style={{ marginTop: '5px' }}>
                   <option value="30">30 сек</option><option value="60">60 сек</option><option value="90">90 сек</option>
@@ -307,6 +384,7 @@ function App() {
             </div>
           ) : (
             <div className="read-only-settings" style={{ marginTop: '15px' }}>
+              <p>Обов'язковий Twitch: <strong style={{ color: room.settings.requireTwitchAuth ? 'var(--accent-green)' : 'inherit' }}>{room.settings.requireTwitchAuth ? 'Так' : 'Ні'}</strong></p>
               <p>Час: <strong>{room.settings.timer} сек</strong></p>
               <p>Словник: <strong>{room.settings.dictType}</strong></p>
               <p>Кіл: <strong>{room.settings.laps === 'infinity' ? 'Безкінечно' : room.settings.laps}</strong></p>
