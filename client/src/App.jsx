@@ -31,6 +31,7 @@ function App() {
   const [appError, setAppError] = useState('');
 
   useEffect(() => {
+    // 1. ПЕРЕВІРКА ТА ОБРОБКА ТОКЕНУ З TWITCH
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -47,9 +48,16 @@ function App() {
       .then(data => {
         if (data.data && data.data.length > 0) {
            const twitchName = data.data[0].display_name;
+           // Зберігаємо нікнейм у сховище браузера
            localStorage.setItem('alias_twitch_name', twitchName);
-           setPlayerName(twitchName);
-           setIsTwitchAuth(true);
+           
+           // ЯКЩО ЦЕ ВІДБУВАЄТЬСЯ У ВІКОНЦІ-ПОПАПІ (ЯКЕ МИ ВІДКРИЛИ)
+           if (window.opener) {
+               window.close(); // Автоматично закриваємо вікно авторизації
+           } else {
+               setPlayerName(twitchName);
+               setIsTwitchAuth(true);
+           }
         }
       }).catch(err => console.error("Помилка Twitch", err));
     } else {
@@ -59,6 +67,20 @@ function App() {
            setIsTwitchAuth(true);
        }
     }
+
+    // 2. СЛУХАЄМО, КОЛИ ПОПАП ЗБЕРЕЖЕ НІКНЕЙМ
+    const handleStorageChange = (e) => {
+        if (e.key === 'alias_twitch_name') {
+            if (e.newValue) {
+                setPlayerName(e.newValue);
+                setIsTwitchAuth(true);
+            } else {
+                setPlayerName('');
+                setIsTwitchAuth(false);
+            }
+        }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     socket.on('roomCreated', setRoom);
     socket.on('roomUpdated', (data) => { 
@@ -78,13 +100,19 @@ function App() {
 
     return () => {
       socket.removeAllListeners();
+      window.removeEventListener('storage', handleStorageChange);
       clearInterval(pingInterval);
     };
   }, []);
 
   const handleTwitchLogin = () => {
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token`;
-    window.location.href = url;
+    // ВІДКРИВАЄМО АВТОРИЗАЦІЮ У НОВОМУ ВІКОНЦІ ПОВЕРХ ГРИ
+    const width = 500;
+    const height = 650;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    window.open(url, 'TwitchAuth', `width=${width},height=${height},left=${left},top=${top}`);
   };
 
   const handleTwitchLogout = () => {
@@ -216,7 +244,6 @@ function App() {
         <ErrorToast />
         <div className="app-wrapper game-mode">
           <div className="game-header">
-            {/* ВИПРАВЛЕНИЙ БЛОК КОМАНДИ ТА РАХУНКУ */}
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
               <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
               <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
