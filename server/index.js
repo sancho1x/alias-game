@@ -6,7 +6,6 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
-// Ендпоінт для запобігання "сплячці" Render
 app.get('/ping', (req, res) => {
   res.status(200).send('pong');
 });
@@ -60,15 +59,19 @@ io.on('connection', (socket) => {
       lastActive: Date.now(),
       players: [{ id: socket.id, playerId, name: playerName, teamId: null, online: true }],
       teams: [],
-      settings: { timer: 60, dictType: 'medium', customWords: [] },
+      settings: { timer: 60, dictType: 'medium', customWords: [], laps: 'infinity' },
       gameState: { 
         status: 'lobby', 
         currentTeamIndex: 0, 
         explainerIndices: {}, 
         currentWord: '', 
         timeLeft: 60,
+        targetTime: 60,
         usedWords: [], 
-        roundHistory: [] 
+        roundHistory: [],
+        turnsTaken: 0,
+        lastExplainerId: null,
+        lastTeamId: null
       },
       timerInterval: null
     };
@@ -83,9 +86,14 @@ io.on('connection', (socket) => {
       const existing = room.players.find(p => p.playerId === playerId);
       
       if (existing) {
+        const oldId = existing.id;
         existing.id = socket.id;
         existing.name = playerName;
         existing.online = true;
+        
+        // Зберігаємо права ведучого, якщо він оновив сторінку
+        if (room.gameState.currentExplainerId === oldId) room.gameState.currentExplainerId = socket.id;
+        if (room.gameState.lastExplainerId === oldId) room.gameState.lastExplainerId = socket.id;
       } else {
         room.players.push({ id: socket.id, playerId, name: playerName, teamId: null, online: true });
       }
@@ -98,18 +106,6 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     } else {
       socket.emit('error', 'Кімнату не знайдено.');
-    }
-  });
-
-  socket.on('adjustScore', ({ roomCode, teamId, amount }) => {
-    const room = rooms[roomCode];
-    const player = room?.players.find(p => p.id === socket.id);
-    if (room && player && room.hostId === player.playerId) {
-      const team = room.teams.find(t => t.id === teamId);
-      if (team) {
-        team.score += amount;
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
-      }
     }
   });
 
@@ -140,6 +136,7 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Логіка команд
   socket.on('createTeam', ({ roomCode, teamName }) => {
     const room = rooms[roomCode];
     if (room) {
@@ -157,11 +154,7 @@ io.on('connection', (socket) => {
       touchRoom(roomCode);
       const player = room.players.find(p => p.id === socket.id);
       const playersInTeam = room.players.filter(p => p.teamId === teamId);
-      
-      if (player && player.teamId !== teamId && playersInTeam.length >= 2) {
-        return socket.emit('error', 'Команда вже заповнена');
-      }
-      
+      if (player && player.teamId !== teamId && playersInTeam.length >= 2) return socket.emit('error', 'Команда вже заповнена');
       if (player) player.teamId = teamId;
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     }
@@ -178,12 +171,60 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('shuffleTeams', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (room && player && room.hostId === player.playerId) {
+        touchRoom(roomCode);
+        const teamPlayers = room.players.filter(p => p.teamId !== null);
+        
+        // Fisher-Yates shuffle
+        for (let i = teamPlayers.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [teamPlayers[i], teamPlayers[j]] = [teamPlayers[j], teamPlayers[i]];
+        }
+        
+        let pIdx = 0;
+        for (const team of room.teams) {
+            room.players.forEach(p => { if(p.teamId === team.id) p.teamId = null; });
+            if (pIdx < teamPlayers.length) teamPlayers[pIdx++].teamId = team.id;
+            if (pIdx < teamPlayers.length) teamPlayers[pIdx++].teamId = team.id;
+        }
+        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+    }
+  });
+
+  // Логіка рахунків та гри
+  socket.on('adjustScore', ({ roomCode, teamId, amount }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (room && player && room.hostId === player.playerId) {
+      const team = room.teams.find(t => t.id === teamId);
+      if (team) {
+        team.score += amount;
+        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      }
+    }
+  });
+
+  socket.on('resetGame', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (room && player && room.hostId === player.playerId) {
+        touchRoom(roomCode);
+        room.gameState.turnsTaken = 0;
+        room.gameState.currentTeamIndex = 0;
+        room.gameState.explainerIndices = {};
+        room.teams.forEach(t => t.score = 0);
+        room.gameState.usedWords = [];
+        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+    }
+  });
+
   const getRandomWord = (room) => {
     let pool = [];
     if (room.settings.dictType === 'custom') {
-      pool = room.settings.customWords && room.settings.customWords.length > 0 
-        ? room.settings.customWords 
-        : ["СЛОВНИК", "ПОРОЖНІЙ"];
+      pool = room.settings.customWords && room.settings.customWords.length > 0 ? room.settings.customWords : ["СЛОВНИК", "ПОРОЖНІЙ"];
     } else {
       pool = dictionaries[room.settings.dictType] || dictionaries.easy;
     }
@@ -193,34 +234,53 @@ io.on('connection', (socket) => {
       room.gameState.usedWords = [];
       availableWords = pool;
     }
-
     const word = availableWords[Math.floor(Math.random() * availableWords.length)];
     room.gameState.usedWords.push(word);
     return word;
   };
 
+  const runTimer = (room) => {
+    if (room.timerInterval) clearInterval(room.timerInterval);
+    room.timerInterval = setInterval(() => {
+      room.gameState.timeLeft -= 1;
+      
+      if (room.gameState.status === 'countdown') {
+        if (room.gameState.timeLeft > 0) {
+          io.to(room.id).emit('timerUpdate', room.gameState.timeLeft);
+        } else {
+          room.gameState.status = 'playing';
+          room.gameState.timeLeft = room.gameState.targetTime;
+          io.to(room.id).emit('roomUpdated', getSafeRoom(room));
+          io.to(room.id).emit('timerUpdate', room.gameState.timeLeft);
+        }
+      } else if (room.gameState.status === 'playing') {
+        io.to(room.id).emit('timerUpdate', room.gameState.timeLeft);
+        if (room.gameState.timeLeft <= 0) {
+          clearInterval(room.timerInterval);
+          room.gameState.status = 'last_word';
+          io.to(room.id).emit('roomUpdated', getSafeRoom(room));
+        }
+      }
+    }, 1000);
+  };
+
   socket.on('startTurn', ({ roomCode }) => {
     const room = rooms[roomCode];
     const player = room?.players.find(p => p.id === socket.id);
-    
     if (!room || !player || room.hostId !== player.playerId) return;
     touchRoom(roomCode);
 
     if (room.teams.length === 0) return socket.emit('error', 'Створіть команди');
     for (const team of room.teams) {
-      if (room.players.filter(p => p.teamId === team.id).length < 2) {
-        return socket.emit('error', `У команді "${team.name}" треба 2 гравці`);
-      }
+      if (room.players.filter(p => p.teamId === team.id).length < 2) return socket.emit('error', `У команді "${team.name}" треба 2 гравці`);
     }
 
-    // Включаємо фазу відліку (3..2..1)
     room.gameState.status = 'countdown';
     room.gameState.timeLeft = 3;
+    room.gameState.targetTime = room.settings.timer;
     room.gameState.roundHistory = []; 
     
-    if (room.gameState.currentTeamIndex >= room.teams.length) {
-      room.gameState.currentTeamIndex = 0;
-    }
+    if (room.gameState.currentTeamIndex >= room.teams.length) room.gameState.currentTeamIndex = 0;
     
     const currentTeam = room.teams[room.gameState.currentTeamIndex];
     room.gameState.currentTeamId = currentTeam.id;
@@ -229,34 +289,35 @@ io.on('connection', (socket) => {
     let expIdx = (room.gameState.explainerIndices[currentTeam.id] || 0) % teamPlayers.length;
     room.gameState.currentExplainerId = teamPlayers[expIdx].id;
 
-    room.gameState.currentWord = 'Готуйтесь!'; // Заглушка на час відліку
+    room.gameState.currentWord = 'Готуйтесь!';
     io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+    runTimer(room);
+  });
 
-    if (room.timerInterval) clearInterval(room.timerInterval);
+  socket.on('pauseGame', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (!room || !player || (room.hostId !== player.playerId && room.gameState.currentExplainerId !== socket.id)) return;
     
-    room.timerInterval = setInterval(() => {
-      room.gameState.timeLeft -= 1;
-      
-      if (room.gameState.status === 'countdown') {
-        if (room.gameState.timeLeft > 0) {
-          io.to(roomCode).emit('timerUpdate', room.gameState.timeLeft);
-        } else {
-          // Відлік закінчився, починаємо гру
-          room.gameState.status = 'playing';
-          room.gameState.timeLeft = room.settings.timer;
-          room.gameState.currentWord = getRandomWord(room);
-          io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
-          io.to(roomCode).emit('timerUpdate', room.gameState.timeLeft);
-        }
-      } else if (room.gameState.status === 'playing') {
-        io.to(roomCode).emit('timerUpdate', room.gameState.timeLeft);
-        if (room.gameState.timeLeft <= 0) {
-          clearInterval(room.timerInterval);
-          room.gameState.status = 'last_word';
-          io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
-        }
-      }
-    }, 1000);
+    if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
+        clearInterval(room.timerInterval);
+        room.gameState.targetTime = room.gameState.timeLeft; 
+        room.gameState.status = 'paused';
+        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+    }
+  });
+  
+  socket.on('resumeGame', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (!room || !player || (room.hostId !== player.playerId && room.gameState.currentExplainerId !== socket.id)) return;
+    
+    if (room.gameState.status === 'paused') {
+        room.gameState.status = 'countdown';
+        room.gameState.timeLeft = 3;
+        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        runTimer(room);
+    }
   });
 
   socket.on('nextWord', ({ roomCode, isCorrect }) => {
@@ -270,7 +331,7 @@ io.on('connection', (socket) => {
       
       room.gameState.roundHistory.push({
         word: room.gameState.currentWord,
-        isCorrect: isCorrect
+        status: isCorrect ? 'correct' : 'skipped'
       });
 
       room.gameState.currentWord = getRandomWord(room);
@@ -289,16 +350,50 @@ io.on('connection', (socket) => {
 
       room.gameState.roundHistory.push({
         word: room.gameState.currentWord,
-        isCorrect: isCorrect 
+        status: isCorrect ? 'correct' : 'neutral' // Якщо останнє не вгадано, воно сіре (не мінусує)
       });
 
-      room.gameState.status = 'turn_ended';
+      room.gameState.lastExplainerId = room.gameState.currentExplainerId;
+      room.gameState.lastTeamId = room.gameState.currentTeamId;
+      room.gameState.turnsTaken += 1;
+
+      const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * room.teams.length * 2;
       
-      // Передаємо чергу пояснювати іншому гравцю в команді
-      room.gameState.explainerIndices[team.id] = (room.gameState.explainerIndices[team.id] || 0) + 1;
-      room.gameState.currentTeamIndex = (room.gameState.currentTeamIndex + 1) % room.teams.length;
+      if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
+        room.gameState.status = 'game_over';
+      } else {
+        room.gameState.status = 'turn_ended';
+        room.gameState.explainerIndices[team.id] = (room.gameState.explainerIndices[team.id] || 0) + 1;
+        room.gameState.currentTeamIndex = (room.gameState.currentTeamIndex + 1) % room.teams.length;
+      }
       
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+    }
+  });
+
+  socket.on('toggleWord', ({ roomCode, wordIndex }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (!room || !player) return;
+    
+    // Тільки хост або ведучий цього раунду можуть змінювати статус
+    if (room.hostId !== player.playerId && room.gameState.lastExplainerId !== socket.id) return;
+    
+    const historyItem = room.gameState.roundHistory[wordIndex];
+    const team = room.teams.find(t => t.id === room.gameState.lastTeamId);
+    
+    if (historyItem && team) {
+        if (historyItem.status === 'correct') {
+            historyItem.status = 'neutral';
+            team.score -= 1;
+        } else if (historyItem.status === 'neutral') {
+            historyItem.status = 'skipped';
+            team.score -= 1;
+        } else if (historyItem.status === 'skipped') {
+            historyItem.status = 'correct';
+            team.score += 2;
+        }
+        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     }
   });
 
