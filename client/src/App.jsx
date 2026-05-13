@@ -102,7 +102,7 @@ function App() {
     return (
       <div className="app-wrapper">
         <div className="container">
-          <h1 className="logo-title">ALIAS UA</h1>
+          <h1 className="logo-title">ЕЛІАС</h1>
           
           {isTwitchAuth ? (
             <div style={{ textAlign: 'center', backgroundColor: '#3d4554', padding: '15px', borderRadius: '12px' }}>
