@@ -47,7 +47,8 @@ const touchRoom = (roomCode) => {
 
 io.on('connection', (socket) => {
   
-  socket.on('createRoom', ({ playerName, playerId }) => {
+  // Додано isTwitchAuth для фіксації Твіч-юзерів
+  socket.on('createRoom', ({ playerName, playerId, isTwitchAuth }) => {
     if (Object.keys(rooms).length >= MAX_ROOMS) {
       return socket.emit('error', 'Сервери перевантажені! Спробуйте пізніше.');
     }
@@ -57,9 +58,10 @@ io.on('connection', (socket) => {
       id: roomCode,
       hostId: playerId,
       lastActive: Date.now(),
-      players: [{ id: socket.id, playerId, name: playerName, teamId: null, online: true }],
+      players: [{ id: socket.id, playerId, name: playerName, teamId: null, online: true, isTwitch: isTwitchAuth }],
       teams: [],
-      settings: { timer: 60, dictType: 'medium', customWords: [], laps: 'infinity' },
+      // Додано requireTwitchAuth
+      settings: { timer: 60, dictType: 'medium', customWords: [], laps: 'infinity', requireTwitchAuth: false },
       gameState: { 
         status: 'lobby', 
         currentTeamIndex: 0, 
@@ -72,7 +74,7 @@ io.on('connection', (socket) => {
         turnsTaken: 0,
         lastExplainerId: null,
         lastTeamId: null,
-        pausedState: null // Для збереження стану при поверненні в лобі
+        pausedState: null 
       },
       timerInterval: null
     };
@@ -80,22 +82,29 @@ io.on('connection', (socket) => {
     socket.emit('roomCreated', getSafeRoom(rooms[roomCode]));
   });
 
-  socket.on('joinRoom', ({ roomCode, playerName, playerId }) => {
+  socket.on('joinRoom', ({ roomCode, playerName, playerId, isTwitchAuth }) => {
     const room = rooms[roomCode];
     if (room) {
       touchRoom(roomCode);
+      
+      // Перевірка на обов'язковий Твіч (якщо юзер заходить як новий гравець без Твіча)
       const existing = room.players.find(p => p.playerId === playerId);
       
+      if (!existing && room.settings.requireTwitchAuth && !isTwitchAuth) {
+          return socket.emit('error', 'Хост цієї кімнати увімкнув обов\'язковий вхід через Twitch!');
+      }
+
       if (existing) {
         const oldId = existing.id;
         existing.id = socket.id;
         existing.name = playerName;
         existing.online = true;
+        existing.isTwitch = isTwitchAuth || existing.isTwitch;
         
         if (room.gameState.currentExplainerId === oldId) room.gameState.currentExplainerId = socket.id;
         if (room.gameState.lastExplainerId === oldId) room.gameState.lastExplainerId = socket.id;
       } else {
-        room.players.push({ id: socket.id, playerId, name: playerName, teamId: null, online: true });
+        room.players.push({ id: socket.id, playerId, name: playerName, teamId: null, online: true, isTwitch: isTwitchAuth });
       }
       
       if (!room.hostId || !room.players.find(p => p.playerId === room.hostId && p.online)) {
@@ -305,7 +314,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // НОВЕ: Повернення в лобі зі збереженням стану гри
   socket.on('returnToLobby', ({ roomCode }) => {
     const room = rooms[roomCode];
     const player = room?.players.find(p => p.id === socket.id);
@@ -313,11 +321,10 @@ io.on('connection', (socket) => {
     
     if (['playing', 'last_word', 'paused', 'countdown'].includes(room.gameState.status)) {
         clearInterval(room.timerInterval);
-        // Зберігаємо поточний стан (щоб знати, чи треба відновити час)
         if (room.gameState.status !== 'countdown' && room.gameState.status !== 'paused') {
              room.gameState.targetTime = room.gameState.timeLeft;
         }
-        room.gameState.pausedState = 'active_turn'; // Позначка, що раунд був перерваний
+        room.gameState.pausedState = 'active_turn'; 
         room.gameState.status = 'lobby';
         io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     }
@@ -326,7 +333,6 @@ io.on('connection', (socket) => {
   socket.on('resumeGame', ({ roomCode }) => {
     const room = rooms[roomCode];
     const player = room?.players.find(p => p.id === socket.id);
-    // Продовжувати з лобі може тільки хост, а з паузи - хост або ведучий
     if (!room || !player) return;
     if (room.gameState.status === 'lobby' && room.hostId !== player.playerId) return;
     if (room.gameState.status === 'paused' && room.hostId !== player.playerId && room.gameState.currentExplainerId !== socket.id) return;
@@ -336,9 +342,7 @@ io.on('connection', (socket) => {
         room.gameState.status = 'countdown';
         room.gameState.timeLeft = 3;
         
-        // Якщо це було продовження з лобі, треба повернути слово
         if (room.gameState.currentWord === '' || room.gameState.currentWord === 'Готуйтесь!') {
-             // Витягуємо останнє зі списку використаних або генеруємо нове
              room.gameState.currentWord = room.gameState.usedWords[room.gameState.usedWords.length - 1] || getRandomWord(room);
         }
 
@@ -394,7 +398,7 @@ io.on('connection', (socket) => {
         room.gameState.currentTeamIndex = (room.gameState.currentTeamIndex + 1) % room.teams.length;
       }
       
-      room.gameState.pausedState = null; // Очищуємо позначку перерваного раунду
+      room.gameState.pausedState = null; 
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     }
   });
@@ -431,7 +435,7 @@ io.on('connection', (socket) => {
       touchRoom(roomCode);
       if (room.timerInterval) clearInterval(room.timerInterval);
       room.gameState.status = 'lobby';
-      room.gameState.pausedState = null; // Повне скидання поточного недограного раунду
+      room.gameState.pausedState = null; 
       io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
     }
   });
