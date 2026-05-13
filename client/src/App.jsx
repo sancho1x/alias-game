@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import './App.css';
 
 // 🚨🚨 ВСТАВ СВІЙ CLIENT ID З TWITCH DEVELOPER CONSOLE ТУТ 🚨🚨
-const TWITCH_CLIENT_ID = 'ТВІЙ_CLIENT_ID_ТУТ'; 
+const TWITCH_CLIENT_ID = 'fh66pb8rdh6mr32melibkiybfvhipr'; 
 const REDIRECT_URI = window.location.origin;
 
 const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
@@ -28,7 +28,6 @@ function App() {
   const [newTeamName, setNewTeamName] = useState('');
   const [localTimer, setLocalTimer] = useState(0);
   
-  // Новий стейт для красивих помилок
   const [appError, setAppError] = useState('');
 
   useEffect(() => {
@@ -68,10 +67,8 @@ function App() {
     });
     socket.on('timerUpdate', setLocalTimer);
     
-    // ПРАВИЛЬНИЙ ОБРОБНИК ПОМИЛОК
     socket.on('error', (msg) => {
         setAppError(msg);
-        // Помилка сама зникне через 4 секунди
         setTimeout(() => setAppError(''), 4000);
     });
 
@@ -106,7 +103,6 @@ function App() {
   const handleShuffleTeams = () => socket.emit('shuffleTeams', { roomCode: room.id });
   const handleResetGame = () => { if(window.confirm('Скинути всі рахунки та кола до нуля?')) socket.emit('resetGame', { roomCode: room.id }); };
 
-  // Рендеримо компонент помилки (буде висіти поверх усього екрану)
   const ErrorToast = () => appError ? (
     <div style={{
         position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
@@ -220,9 +216,12 @@ function App() {
         <ErrorToast />
         <div className="app-wrapper game-mode">
           <div className="game-header">
-            <div className="team-info-top">
-              <span className="team-name">{currentTeam?.name}</span>
-              <span className="team-live-score">Рахунок: {currentTeam?.score}</span>
+            {/* ВИПРАВЛЕНИЙ БЛОК КОМАНДИ ТА РАХУНКУ */}
+            <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
+              <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
+              <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
+                Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
+              </span>
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -247,14 +246,11 @@ function App() {
               <>
                 <div className="word-container"><h1 className="main-word">{room.gameState.currentWord}</h1></div>
                 <div className="action-buttons">
-                  {/* МІНУСОВА КНОПКА ЗАВЖДИ ЗЛІВА */}
                   {!isLast ? (
                     <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>
                   ) : (
                     <button className="secondary-btn" onClick={() => socket.emit('lastWordResult', { roomCode: room.id, isCorrect: false })}>Не вгадали (0)</button>
                   )}
-                  
-                  {/* ПЛЮСОВА КНОПКА ЗАВЖДИ СПРАВА */}
                   <button className="btn-correct" onClick={() => socket.emit(isLast ? 'lastWordResult' : 'nextWord', { roomCode: room.id, isCorrect: true })}>Вгадали (+1)</button>
                 </div>
               </>
