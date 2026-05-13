@@ -47,7 +47,6 @@ const touchRoom = (roomCode) => {
 
 io.on('connection', (socket) => {
   
-  // Додано isTwitchAuth для фіксації Твіч-юзерів
   socket.on('createRoom', ({ playerName, playerId, isTwitchAuth }) => {
     if (Object.keys(rooms).length >= MAX_ROOMS) {
       return socket.emit('error', 'Сервери перевантажені! Спробуйте пізніше.');
@@ -60,7 +59,6 @@ io.on('connection', (socket) => {
       lastActive: Date.now(),
       players: [{ id: socket.id, playerId, name: playerName, teamId: null, online: true, isTwitch: isTwitchAuth }],
       teams: [],
-      // Додано requireTwitchAuth
       settings: { timer: 60, dictType: 'medium', customWords: [], laps: 'infinity', requireTwitchAuth: false },
       gameState: { 
         status: 'lobby', 
@@ -87,11 +85,10 @@ io.on('connection', (socket) => {
     if (room) {
       touchRoom(roomCode);
       
-      // Перевірка на обов'язковий Твіч (якщо юзер заходить як новий гравець без Твіча)
       const existing = room.players.find(p => p.playerId === playerId);
       
       if (!existing && room.settings.requireTwitchAuth && !isTwitchAuth) {
-          return socket.emit('error', 'Хост цієї кімнати увімкнув обов\'язковий вхід через Twitch!');
+          return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch! Авторизуйтесь через кнопку Twitch.');
       }
 
       if (existing) {
