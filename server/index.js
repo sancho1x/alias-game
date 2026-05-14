@@ -310,8 +310,10 @@ const runTimer = (room) => {
           room.gameState.status = 'playing';
           room.gameState.timeLeft = room.gameState.targetTime;
           
-          // 🔥 ОСЬ ЦЕЙ РЯДОК ДОДАНО: Генеруємо перше справжнє слово, коли починається раунд!
-          room.gameState.currentWord = getRandomWord(room);
+          // 🔥 ВИПРАВЛЕННЯ: Генеруємо нове слово ТІЛЬКИ якщо це новий старт
+          if (room.gameState.currentWord === 'Готуйтесь!' || room.gameState.currentWord === '') {
+              room.gameState.currentWord = getRandomWord(room);
+          }
           
           broadcastRoomUpdate(room.id);
           io.to(room.id).emit('timerUpdate', room.gameState.timeLeft);
