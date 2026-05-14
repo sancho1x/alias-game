@@ -31,7 +31,6 @@ function App() {
   const [appError, setAppError] = useState('');
 
   useEffect(() => {
-    // 1. ПЕРЕВІРКА ТА ОБРОБКА ТОКЕНУ З TWITCH
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -48,12 +47,10 @@ function App() {
       .then(data => {
         if (data.data && data.data.length > 0) {
            const twitchName = data.data[0].display_name;
-           // Зберігаємо нікнейм у сховище браузера
            localStorage.setItem('alias_twitch_name', twitchName);
            
-           // ЯКЩО ЦЕ ВІДБУВАЄТЬСЯ У ВІКОНЦІ-ПОПАПІ (ЯКЕ МИ ВІДКРИЛИ)
            if (window.opener) {
-               window.close(); // Автоматично закриваємо вікно авторизації
+               window.close();
            } else {
                setPlayerName(twitchName);
                setIsTwitchAuth(true);
@@ -68,7 +65,6 @@ function App() {
        }
     }
 
-    // 2. СЛУХАЄМО, КОЛИ ПОПАП ЗБЕРЕЖЕ НІКНЕЙМ
     const handleStorageChange = (e) => {
         if (e.key === 'alias_twitch_name') {
             if (e.newValue) {
@@ -107,7 +103,6 @@ function App() {
 
   const handleTwitchLogin = () => {
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token`;
-    // ВІДКРИВАЄМО АВТОРИЗАЦІЮ У НОВОМУ ВІКОНЦІ ПОВЕРХ ГРИ
     const width = 500;
     const height = 650;
     const left = window.screen.width / 2 - width / 2;
@@ -219,7 +214,8 @@ function App() {
           <h1 style={{ fontSize: '4rem', color: 'var(--accent-yellow)', marginBottom: '30px' }}>ПАУЗА</h1>
           {canResume ? (
             <div style={{ display: 'flex', gap: '15px', flexDirection: 'column' }}>
-              <button className="btn-correct" style={{ padding: '20px 40px', fontSize: '1.5rem' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id })}>
+              {/* Тут також додав action: 'resume' */}
+              <button className="btn-correct" style={{ padding: '20px 40px', fontSize: '1.5rem' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id, action: 'resume' })}>
                 Продовжити гру
               </button>
               <button className="ghost-btn" style={{ padding: '15px' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
@@ -386,9 +382,18 @@ function App() {
           
           {isHost && room.teams.length > 0 && (
             isGamePausedInLobby ? (
-              <button className="mega-btn pulse" style={{ backgroundColor: 'var(--accent-green)' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id })}>
-                ▶ ПРОДОВЖИТИ ГРУ
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                <button className="mega-btn pulse" style={{ backgroundColor: 'var(--accent-green)' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id, action: 'resume' })}>
+                  ▶ ПРОДОВЖИТИ ПЕРЕРВАНИЙ ХІД
+                </button>
+                <button className="ghost-btn" style={{ borderColor: 'var(--accent-yellow)', color: 'var(--accent-yellow)' }} onClick={() => {
+                  if(window.confirm('Ви впевнені? Всі бали, зароблені за цей хід, будуть скасовані, і гравець почне свої секунди заново з новими словами.')) {
+                    socket.emit('resumeGame', { roomCode: room.id, action: 'restart_turn' });
+                  }
+                }}>
+                  🔄 ПОЧАТИ ХІД З НУЛЯ (З НОВИМИ НАЛАШТУВАННЯМИ)
+                </button>
+              </div>
             ) : (
               <button className="mega-btn pulse" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>
                 ▶ ПОЧАТИ ГРУ
