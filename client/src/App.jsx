@@ -18,7 +18,7 @@ const getPersistentId = () => {
   return id;
 };
 
-const playerId = getPersistentId();
+const basePlayerId = getPersistentId();
 
 function App() {
   const [playerName, setPlayerName] = useState('');
@@ -29,6 +29,9 @@ function App() {
   const [localTimer, setLocalTimer] = useState(0);
   
   const [appError, setAppError] = useState('');
+
+  // Обчислюємо поточний справжній ID гравця (щоб коректно відображати хоста на клієнті)
+  const currentPlayerId = isTwitchAuth ? `twitch_${playerName}` : basePlayerId;
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -90,6 +93,14 @@ function App() {
         setTimeout(() => setAppError(''), 4000);
     });
 
+    // ОБРОБКА КІКУ
+    socket.on('kicked', () => {
+        setRoom(null);
+        setRoomCode('');
+        setAppError('Вас вигнали з кімнати!');
+        setTimeout(() => setAppError(''), 5000);
+    });
+
     const pingInterval = setInterval(() => {
       fetch(`${BACKEND_URL}/ping`).catch(() => {});
     }, 10 * 60 * 1000); 
@@ -116,8 +127,8 @@ function App() {
     setIsTwitchAuth(false);
   };
 
-  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId, isTwitchAuth });
-  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId, isTwitchAuth });
+  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId: basePlayerId, isTwitchAuth });
+  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth });
   const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
   
   const handleCreateTeam = () => { if (newTeamName) { socket.emit('createTeam', { roomCode: room.id, teamName: newTeamName }); setNewTeamName(''); } };
@@ -125,6 +136,7 @@ function App() {
   const handleAdjustScore = (teamId, amount) => socket.emit('adjustScore', { roomCode: room.id, teamId, amount });
   const handleShuffleTeams = () => socket.emit('shuffleTeams', { roomCode: room.id });
   const handleResetGame = () => { if(window.confirm('Скинути всі рахунки та кола до нуля?')) socket.emit('resetGame', { roomCode: room.id }); };
+  const handleKickPlayer = (targetId) => { if(window.confirm('Точно вигнати гравця? Він не зможе повернутися.')) socket.emit('kickPlayer', { roomCode: room.id, targetPlayerId: targetId }); };
 
   const ErrorToast = () => appError ? (
     <div style={{
@@ -169,24 +181,35 @@ function App() {
     );
   }
 
-  const isHost = room.hostId === playerId;
+  const isHost = room.hostId === currentPlayerId;
   const currentTeam = room.teams[room.gameState.currentTeamIndex];
-  const myPlayerInfo = room.players.find(p => p.playerId === playerId);
+  const myPlayerInfo = room.players.find(p => p.playerId === currentPlayerId);
 
   const renderPlayersList = (compact = false) => (
     <div className="players-list">
       <h3>Гравці {compact && 'у кімнаті'}</h3>
       <ul style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {room.players.map(p => (
-          <li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5 }}>
-            <span style={{ color: p.online ? 'inherit' : 'var(--text-muted)' }}>
-              {p.isTwitch && <span style={{ marginRight: '5px' }} title="Авторизований через Twitch">📺</span>}
-              {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
-              {!p.online && " (не в мережі)"}
-            </span>
-            <span className="muted" style={{ marginLeft: '10px' }}>
-              {room.teams.find(t => t.id === p.teamId) ? `(${room.teams.find(t => t.id === p.teamId).name})` : ''}
-            </span>
+          <li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ color: p.online ? 'inherit' : 'var(--text-muted)' }}>
+                {p.isTwitch && <span style={{ marginRight: '5px' }} title="Авторизований через Twitch">📺</span>}
+                {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
+                {!p.online && " (не в мережі)"}
+              </span>
+              <span className="muted" style={{ marginLeft: '10px' }}>
+                {room.teams.find(t => t.id === p.teamId) ? `(${room.teams.find(t => t.id === p.teamId).name})` : ''}
+              </span>
+            </div>
+            {isHost && p.playerId !== currentPlayerId && !compact && (
+                <button 
+                  onClick={() => handleKickPlayer(p.playerId)} 
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+                  title="Вигнати гравця"
+                >
+                  💀
+                </button>
+            )}
           </li>
         ))}
       </ul>
@@ -212,9 +235,11 @@ function App() {
         <ErrorToast />
         <div className="app-wrapper game-mode" style={{ justifyContent: 'center', alignItems: 'center' }}>
           <h1 style={{ fontSize: '4rem', color: 'var(--accent-yellow)', marginBottom: '30px' }}>ПАУЗА</h1>
+          {room.gameState.autoPausedBySystem && (
+             <p style={{ color: 'var(--accent-red)', marginBottom: '20px', textAlign: 'center' }}>Один з активних гравців втратив з'єднання!</p>
+          )}
           {canResume ? (
             <div style={{ display: 'flex', gap: '15px', flexDirection: 'column' }}>
-              {/* Тут також додав action: 'resume' */}
               <button className="btn-correct" style={{ padding: '20px 40px', fontSize: '1.5rem' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id, action: 'resume' })}>
                 Продовжити гру
               </button>
