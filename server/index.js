@@ -2,9 +2,30 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const mongoose = require('mongoose'); // ДОДАЛИ MONGOOSE
 
 const app = express();
 app.use(cors());
+
+// 🚨🚨 ВСТАВ СВІЙ РЯДОК ПІДКЛЮЧЕННЯ ДО MONGODB ТУТ 🚨🚨
+const MONGO_URI = process.env.MONGO_URI;
+
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('✅ Підключено до MongoDB'))
+  .catch(err => console.error('❌ Помилка MongoDB:', err));
+
+// Схема для зберігання кімнати в базі (strict: false дозволяє гнучко міняти структуру)
+const roomSchema = new mongoose.Schema({
+  id: String,
+  hostId: String,
+  lastActive: Number,
+  players: Array,
+  teams: Array,
+  settings: Object,
+  gameState: Object
+}, { strict: false });
+
+const RoomModel = mongoose.model('Room', roomSchema);
 
 app.get('/ping', (req, res) => {
   res.status(200).send('pong');
@@ -16,13 +37,59 @@ const io = new Server(server, { cors: { origin: "*" } });
 const rooms = {};
 const MAX_ROOMS = 100; 
 const ROOM_TIMEOUT = 2 * 60 * 60 * 1000; 
+
+// ВІДНОВЛЕННЯ ДАНИХ ПРИ ЗАПУСКУ СЕРВЕРА
+RoomModel.find({}).then(dbRooms => {
+  dbRooms.forEach(r => {
+    if (Date.now() - r.lastActive < ROOM_TIMEOUT) {
+        const room = r.toObject();
+        room.timerInterval = null;
+        
+        // Якщо сервер впав під час активного раунду, ставимо гру на паузу
+        if (room.gameState.status === 'playing' || room.gameState.status === 'countdown') {
+            room.gameState.status = 'paused';
+            room.gameState.pausedState = 'active_turn';
+        }
+        rooms[r.id] = room;
+    } else {
+        // Чистимо старі протухші кімнати з бази
+        RoomModel.deleteOne({ id: r.id }).catch(()=>({}));
+    }
+  });
+  console.log(`📦 Відновлено кімнат з бази: ${Object.keys(rooms).length}`);
+});
+
 const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
 
+// ГОЛОВНА ФУНКЦІЯ СИНХРОНІЗАЦІЇ
+const getSafeRoom = (room) => {
+  const { timerInterval, ...safeRoom } = room;
+  return safeRoom;
+};
+
+const broadcastRoomUpdate = (roomCode) => {
+  const room = rooms[roomCode];
+  if (room) {
+    const safeRoom = getSafeRoom(room);
+    io.to(roomCode).emit('roomUpdated', safeRoom);
+    // Зберігаємо або оновлюємо кімнату в базі
+    RoomModel.findOneAndUpdate({ id: room.id }, safeRoom, { upsert: true }).catch(err => console.log('Помилка БД:', err));
+  }
+};
+
+const touchRoom = (roomCode) => {
+  if (rooms[roomCode]) {
+    rooms[roomCode].lastActive = Date.now();
+  }
+};
+
+// Очищення сміття кожні 30 хвилин (з пам'яті і з бази)
 setInterval(() => {
   const now = Date.now();
   for (const code in rooms) {
     if (now - rooms[code].lastActive > ROOM_TIMEOUT) {
       delete rooms[code];
+      RoomModel.deleteOne({ id: code }).catch(()=>({})); 
     }
   }
 }, 30 * 60 * 1000);
@@ -32,17 +99,6 @@ const dictionaries = {
   medium: "Авангард Адекватність Ажіотаж Акваторія Акліматизація Алгоритм Альтернатива Амбіція Аналіз Аномалія Апетит Аристократ Арсенал Архітектура Асиметрія Асортимент Атмосфера Аудиторія Барикада Безмежність Біографія Блокнот Бульвар Вакансія Вакуум Вентиляція Вердикт Вертикаль Вібрація Візаж Вікторина Віртуальність Водоспад Габарит Галерея Гармонія Гастроном Генератор Генетика Гіпотеза Глобалізація Горизонт Гравітація Градація Грамота Декорація Делегат Демонстрація Депресія Десерт Дизайн Дилема Динаміка Дипломат Директор Дисципліна Діагноз Діалект Еволюція Екватор Екземпляр Екіпаж Економіка Екскурсія Експедиція Експеримент Експерт Еластичність Елемент Емоція Енергетика Ентузіазм Епідемія Епізод Ерудиція Естафета Етикет Ефект Ідеалізм Ілюзія Імунітет Інвалідність Інвентар Інвестиція Індивідуум Інженер Ініціатива Інновація Інстинкт Інтелект Інтервал Інтерв'ю Інтонація Інтуїція Іронія Кабінет Кандидат Капітал Карикатура Каталог Катастрофа Кваліфікація Кераміка Клімат Коаліція Колектив Комбінація Коментар Комерція Комітет Компанія Компенсація Комплекс Компроміс Конвеєр Конкурент Конспект Континент Контракт Контроль Конфлікт Концентрація Концепція Координата Коридор Корпорація Критерій Лабіринт Лабораторія Ландшафт Легенда Література Логіка Лояльність Магістраль Максимум Маніпуляція Марафон Маршрут Масштаб Матеріал Мелодія Менталітет Метафора Механізм Мінімум Моделювання Монолог Монумент Мотивація Музикант Навігація Натюрморт Неврастенія Нейтралітет Новатор Ностальгія Об'єктивність Облігація Оптимізм Орбіта Оригінал Орнамент Панорама Паралель Пасажир Патріот Пейзаж Периметр Персонаж Перспектива Песимізм Піраміда Планета Платформа Позиція Політика Полюс Потенціал Президент Премія Препарат Престиж Привілей Принцип Проблема Прогноз Програма Прогрес Проект Пропорція Професор Процес Психологія Публіка Радикал Радіус Реакція Реалізм Революція Регіон Регулятор Редактор Режисер Резерв Резолюція Результат Рекорд Ректор Релігія Репутація Ресурс Рефлекс Реформа Рецепт Ритміка Ритуал Рівновага Романтика Саботаж Санаторій Санкція Секретар Секунда Семінар Символ Симетрія Симптом Синтез Система Ситуація Скелет Скульптура Словник Солідарність Спектр Специфіка Спонсор Стабільність Стандарт Статистика Статус Стипендія Стратегія Структура Студент Суб'єктивність Суверенітет Сценарій Талант Темперамент Тенденція Теорема Терапія Територія Термін Технологія Тираж Товариш Традиція Траєкторія Трактор Транспорт Трансформація Тренінг Туризм Університет Фабрика Фактор Фантазія Факультет Фестиваль Фізика Філософія Фінанси Формула Фрагмент Фундамент Функція Характер Хімія Хірург Хроніка Художник Цензура Центр Цивілізація Чемпіон Шаблон Шедевр Шеренга Шрифт Штурман Екран Ювілей Юридичний".split(" "),
   hard: "Диверсифікація Екзистенціалізм Синхрофазотрон Метаморфоза Абстракція Інтроспекція Когнітивний Прокрастинація Конгруентність Асиміляція Фрустрація Парадокс Емансипація Трансцендентний Дезоксирибонуклеїнова Амплітуда Сингулярність Біфуркація Екстраполяція Детермінізм Редукціонізм Соліпсизм Епістемологія Онтологія Синергетика Ентропія Катарсис Емпатія Апатія Симбіоз Осмос Дифузія Резонанс Інтерференція Дифракція Дисперсія Поляризація Гравітація Радіація Ізотоп Молекула Електрон Протон Нейтрон Кварк Бозон Глюон Фотон Нейтрино Мюон Тау-лептон Антиматерія Макроекономіка Мікроекономіка Інфляція Дефляція Стагфляція Девальвація Ревальвація Емісія Облігація Акція Дивіденд Ф'ючерс Опціон Хеджування Дефолт Банкрутство Монополія Олігополія Конкуренція Юриспруденція Прецедент Конституція Декларація Конвенція Ратифікація Денонсація Імпічмент Вето Кворум Консенсус Мораторій Ембарго Санкції Екстрадиція Апатрид Біпатрид Філантроп Мізантроп Альтруїст Егоїст Песиміст Оптиміст Скептик Цинік Нігіліст Агностик Атеїст Теїст Деїст Пантеїст Апологет Дисидент Ортодокс Єретик Маргінал Аутсайдер Істеблішмент Номенклатура Бюрократія Технократія Плутократія Охлократія Автократія Демократія Монархія Республіка Федерація Конфедерація Унітарізм Сепаратизм Іредентизм Анексія Окупація Капітуляція Контрибуція Репарація Демілітаризація Мобілізація Евакуація Депортація Репатріація Асиміляція Інтеграція Сегрегація Апартеїд Дискримінація Шовінізм Ксенофобія Мізогінія Емансипація Фемінізм Патріархат Матріархат Полігамія Моногамія Ендогамія Екзогамія Інцест Непотизм Кронізм Корупція Хабарництво Здирництво Шантаж Рекетир Контрабанда Контрафакт Фальсифікація Плагіат Піратство Ліцензія Патент Копірайт Франшиза Дистриб'ютор Дилер Брокер Маклер Трейдер Інвестор Спонсор Меценат Девелопер Провайдер Хостинг Домен Сервер Клієнт Трафік Роумінг Пінг Латентність Протокол Шифрування Криптографія Хеш Блокчейн Токен Майнінг Смарт-контракт Децентралізація Аутентифікація Авторизація Біометрія Сканер Радар Сонар Лазер Мазер Транзистор Діод Резистор Конденсатор Індуктивність Трансформатор Генератор Мотор Акумулятор Католізатор Електроліз Гальваніка Корозія Окислення Відновлення Полімеризація Кристалізація Сублімація Конденсація Випаровування Кипіння Плавлення Замерзання Делімітація Демілітаризація Демаркація Апробація".split(" "),
   gamer: "Рогалик Стім Рейд Хедшот Лут Геймпад Фпс Текстура Сейв Моб Крафт Манна Кулдаун Нерф Бафф Дебафф Агро Хіл Дпс Танк Саппорт Керрі Пуш Деф Фарм Грінд Дроп Спавн Респаун Квест Нпс Бос Мінібос Ачівка Скіл Перк Білд Стати Експа Левел Апгрейд Донат Мікротранзакція Пінг Лаг Фріз Глітч Баг Фікс Патч Мод Чіт Експлойт Спідран Стрім Каст Рендер Полігон Шейдер Асет Спрайт Піксель Воксель Аліасинг Інпут-лаг Тікрейт Хітбокс Хертбокс Фреймдата Фреймрейт Вісінк Скрін-тірінг Худ Юай Інвентар Лобі Матчмейкінг Ранк Ело Ммр Смурф Буст Токсик Тімейт Кемпер Рашер Снайпер Флангер Спліт-пуш Бекдор Ганг Роум Кайт Джук Бейт Зонінг Піл Ініціація Фокус Фокус-фаєр Бьорст Сустейн Клів Аое Дот Хот Сс Сайленс Стан Рут Слов Нокап Нокбек Блайнд Таунт Фір Чарм Інвул Імун Резіст Армор Хп Мп Стаміна Енергія Ресурс Макро Мікро Апм Тілт Рейдж-квіт Гг Вп Ізі Катка Траймахард Казуал Хардкор Спідранер Датамайнер Лікер Анонс Трейлер Тизер Реліз Бета Альфа Ранній-доступ Длс Експаншн Спіноф Пріквел Сіквел Ремейк Ремастер Порт Емулятор Кросплей Кроссейв Хмарний-геймінг Віар Ейар Інді ААА БББ Шутер Платформер Рпг Жрпг Стелс Сурвайвал Хоррор Роуглайк Роуглайт Метроїдванія Файтинг Бітемап Спортивний-симулятор Рейсінг Стратегія Ртс Тбс Моба Авточесс Ккі Гача Візуальна-новела Квест Поінт-енд-клік Пазл Ритм-гра Пісочниця Відкритий-світ Лінійний-сюжет Нелінійний-сюжет Квік-тайм-івент Катсцена Діалог Озвучка Саундтрек Емб'єнт Сфх Партикли Блум Моушн-блюр Антіаліасинг Рейтрейсінг Глобальне-освітлення Амбієнт-оклюжн Теселяція Лоди Міпмапи Анізотропна-фільтрація Трілінійна-фільтрація Білінійна-фільтрація Вертикальна-синхронізація Фрісінк Джісінк Монітор Герцівка Мишка Сенса Дпі Клава Механіка Мембранка Світчі Кейкапи Килимок Навушники Мікрофон Вебка Геймпад Стік Трігер Бампер Хрестовина Вібровіддача Гіроскоп Аім-асист Макрос Бінди Консоль Термінал Командний-рядок Сервер Клієнт Хост Локал-хост Порт-форвардінг Нат Брандмауер Антивірус Впн Проксі Днс Айпі Мак-адреса Роутер Світч Хаб Кабель Кручена-пара Оптика Вайфай Блютуз".split(" ")
-};
-
-const getSafeRoom = (room) => {
-  const { timerInterval, ...safeRoom } = room;
-  return safeRoom;
-};
-
-const touchRoom = (roomCode) => {
-  if (rooms[roomCode]) {
-    rooms[roomCode].lastActive = Date.now();
-  }
 };
 
 io.on('connection', (socket) => {
@@ -78,6 +134,8 @@ io.on('connection', (socket) => {
     };
     socket.join(roomCode);
     socket.emit('roomCreated', getSafeRoom(rooms[roomCode]));
+    // Одразу фіксуємо створення кімнати
+    RoomModel.findOneAndUpdate({ id: roomCode }, getSafeRoom(rooms[roomCode]), { upsert: true }).catch(()=>{});
   });
 
   socket.on('joinRoom', ({ roomCode, playerName, playerId, isTwitchAuth }) => {
@@ -88,7 +146,7 @@ io.on('connection', (socket) => {
       const existing = room.players.find(p => p.playerId === playerId);
       
       if (!existing && room.settings.requireTwitchAuth && !isTwitchAuth) {
-          return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch! Авторизуйтесь через кнопку Twitch.');
+          return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch!');
       }
 
       if (existing) {
@@ -109,7 +167,7 @@ io.on('connection', (socket) => {
       }
       
       socket.join(roomCode);
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     } else {
       socket.emit('error', 'Кімнату не знайдено.');
     }
@@ -125,7 +183,7 @@ io.on('connection', (socket) => {
           const nextHost = room.players.find(p => p.playerId !== player.playerId && p.online);
           room.hostId = nextHost ? nextHost.playerId : null;
         }
-        io.to(code).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(code);
         break;
       }
     }
@@ -138,7 +196,7 @@ io.on('connection', (socket) => {
       touchRoom(roomCode);
       room.settings = { ...room.settings, ...settings };
       room.gameState.usedWords = [];
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -149,7 +207,7 @@ io.on('connection', (socket) => {
       const newTeam = { id: Date.now().toString(), name: teamName, score: 0 };
       room.teams.push(newTeam);
       room.gameState.explainerIndices[newTeam.id] = 0;
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -161,7 +219,7 @@ io.on('connection', (socket) => {
       const playersInTeam = room.players.filter(p => p.teamId === teamId);
       if (player && player.teamId !== teamId && playersInTeam.length >= 2) return socket.emit('error', 'Команда вже заповнена');
       if (player) player.teamId = teamId;
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -172,7 +230,7 @@ io.on('connection', (socket) => {
       touchRoom(roomCode);
       room.teams = room.teams.filter(t => t.id !== teamId);
       room.players.forEach(p => { if (p.teamId === teamId) p.teamId = null; });
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -182,19 +240,17 @@ io.on('connection', (socket) => {
     if (room && player && room.hostId === player.playerId) {
         touchRoom(roomCode);
         const teamPlayers = room.players.filter(p => p.teamId !== null);
-        
         for (let i = teamPlayers.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [teamPlayers[i], teamPlayers[j]] = [teamPlayers[j], teamPlayers[i]];
         }
-        
         let pIdx = 0;
         for (const team of room.teams) {
             room.players.forEach(p => { if(p.teamId === team.id) p.teamId = null; });
             if (pIdx < teamPlayers.length) teamPlayers[pIdx++].teamId = team.id;
             if (pIdx < teamPlayers.length) teamPlayers[pIdx++].teamId = team.id;
         }
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -205,7 +261,7 @@ io.on('connection', (socket) => {
       const team = room.teams.find(t => t.id === teamId);
       if (team) {
         team.score += amount;
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
       }
     }
   });
@@ -221,7 +277,7 @@ io.on('connection', (socket) => {
         room.teams.forEach(t => t.score = 0);
         room.gameState.usedWords = [];
         room.gameState.pausedState = null;
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -232,7 +288,6 @@ io.on('connection', (socket) => {
     } else {
       pool = dictionaries[room.settings.dictType] || dictionaries.easy;
     }
-
     let availableWords = pool.filter(w => !room.gameState.usedWords.includes(w));
     if (availableWords.length === 0) {
       room.gameState.usedWords = [];
@@ -254,7 +309,7 @@ io.on('connection', (socket) => {
         } else {
           room.gameState.status = 'playing';
           room.gameState.timeLeft = room.gameState.targetTime;
-          io.to(room.id).emit('roomUpdated', getSafeRoom(room));
+          broadcastRoomUpdate(room.id);
           io.to(room.id).emit('timerUpdate', room.gameState.timeLeft);
         }
       } else if (room.gameState.status === 'playing') {
@@ -262,7 +317,7 @@ io.on('connection', (socket) => {
         if (room.gameState.timeLeft <= 0) {
           clearInterval(room.timerInterval);
           room.gameState.status = 'last_word';
-          io.to(room.id).emit('roomUpdated', getSafeRoom(room));
+          broadcastRoomUpdate(room.id);
         }
       }
     }, 1000);
@@ -294,7 +349,7 @@ io.on('connection', (socket) => {
     room.gameState.currentExplainerId = teamPlayers[expIdx].id;
 
     room.gameState.currentWord = 'Готуйтесь!';
-    io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+    broadcastRoomUpdate(roomCode);
     runTimer(room);
   });
 
@@ -307,7 +362,7 @@ io.on('connection', (socket) => {
         clearInterval(room.timerInterval);
         room.gameState.targetTime = room.gameState.timeLeft; 
         room.gameState.status = 'paused';
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -323,11 +378,10 @@ io.on('connection', (socket) => {
         }
         room.gameState.pausedState = 'active_turn'; 
         room.gameState.status = 'lobby';
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
     }
   });
   
-  // ДОДАНО ОБРОБКУ ПАРАМЕТРА action
   socket.on('resumeGame', ({ roomCode, action }) => {
     const room = rooms[roomCode];
     const player = room?.players.find(p => p.id === socket.id);
@@ -340,33 +394,26 @@ io.on('connection', (socket) => {
         if (action === 'restart_turn') {
             const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
             if (team) {
-                // Відкочуємо бали за перерваний раунд
                 room.gameState.roundHistory.forEach(item => {
                     if (item.status === 'correct') team.score -= 1;
                     if (item.status === 'skipped') team.score += 1;
                 });
             }
-            
             room.gameState.pausedState = null;
             room.gameState.status = 'countdown';
             room.gameState.timeLeft = 3;
-            // Беремо новий час із налаштувань, якщо його змінили
             room.gameState.targetTime = room.settings.timer; 
-            room.gameState.roundHistory = []; // Повністю чистимо історію цього невдалого ходу
+            room.gameState.roundHistory = []; 
             room.gameState.currentWord = 'Готуйтесь!';
-            
         } else {
-            // Стандартне продовження
             room.gameState.pausedState = null;
             room.gameState.status = 'countdown';
             room.gameState.timeLeft = 3;
-            
             if (room.gameState.currentWord === '' || room.gameState.currentWord === 'Готуйтесь!') {
                  room.gameState.currentWord = room.gameState.usedWords[room.gameState.usedWords.length - 1] || getRandomWord(room);
             }
         }
-
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
         runTimer(room);
     }
   });
@@ -386,7 +433,7 @@ io.on('connection', (socket) => {
       });
 
       room.gameState.currentWord = getRandomWord(room);
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -419,7 +466,7 @@ io.on('connection', (socket) => {
       }
       
       room.gameState.pausedState = null; 
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -444,7 +491,7 @@ io.on('connection', (socket) => {
             historyItem.status = 'correct';
             team.score += 2;
         }
-        io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+        broadcastRoomUpdate(roomCode);
     }
   });
 
@@ -456,10 +503,10 @@ io.on('connection', (socket) => {
       if (room.timerInterval) clearInterval(room.timerInterval);
       room.gameState.status = 'lobby';
       room.gameState.pausedState = null; 
-      io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
+      broadcastRoomUpdate(roomCode);
     }
   });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`Server started`));
+server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
