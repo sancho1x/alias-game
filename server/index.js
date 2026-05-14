@@ -298,7 +298,7 @@ io.on('connection', (socket) => {
     return word;
   };
 
-  const runTimer = (room) => {
+const runTimer = (room) => {
     if (room.timerInterval) clearInterval(room.timerInterval);
     room.timerInterval = setInterval(() => {
       room.gameState.timeLeft -= 1;
@@ -309,6 +309,10 @@ io.on('connection', (socket) => {
         } else {
           room.gameState.status = 'playing';
           room.gameState.timeLeft = room.gameState.targetTime;
+          
+          // 🔥 ОСЬ ЦЕЙ РЯДОК ДОДАНО: Генеруємо перше справжнє слово, коли починається раунд!
+          room.gameState.currentWord = getRandomWord(room);
+          
           broadcastRoomUpdate(room.id);
           io.to(room.id).emit('timerUpdate', room.gameState.timeLeft);
         }
