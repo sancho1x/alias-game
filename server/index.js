@@ -327,7 +327,8 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('resumeGame', ({ roomCode }) => {
+  // ДОДАНО ОБРОБКУ ПАРАМЕТРА action
+  socket.on('resumeGame', ({ roomCode, action }) => {
     const room = rooms[roomCode];
     const player = room?.players.find(p => p.id === socket.id);
     if (!room || !player) return;
@@ -335,12 +336,34 @@ io.on('connection', (socket) => {
     if (room.gameState.status === 'paused' && room.hostId !== player.playerId && room.gameState.currentExplainerId !== socket.id) return;
     
     if (room.gameState.status === 'paused' || (room.gameState.status === 'lobby' && room.gameState.pausedState === 'active_turn')) {
-        room.gameState.pausedState = null;
-        room.gameState.status = 'countdown';
-        room.gameState.timeLeft = 3;
         
-        if (room.gameState.currentWord === '' || room.gameState.currentWord === 'Готуйтесь!') {
-             room.gameState.currentWord = room.gameState.usedWords[room.gameState.usedWords.length - 1] || getRandomWord(room);
+        if (action === 'restart_turn') {
+            const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
+            if (team) {
+                // Відкочуємо бали за перерваний раунд
+                room.gameState.roundHistory.forEach(item => {
+                    if (item.status === 'correct') team.score -= 1;
+                    if (item.status === 'skipped') team.score += 1;
+                });
+            }
+            
+            room.gameState.pausedState = null;
+            room.gameState.status = 'countdown';
+            room.gameState.timeLeft = 3;
+            // Беремо новий час із налаштувань, якщо його змінили
+            room.gameState.targetTime = room.settings.timer; 
+            room.gameState.roundHistory = []; // Повністю чистимо історію цього невдалого ходу
+            room.gameState.currentWord = 'Готуйтесь!';
+            
+        } else {
+            // Стандартне продовження
+            room.gameState.pausedState = null;
+            room.gameState.status = 'countdown';
+            room.gameState.timeLeft = 3;
+            
+            if (room.gameState.currentWord === '' || room.gameState.currentWord === 'Готуйтесь!') {
+                 room.gameState.currentWord = room.gameState.usedWords[room.gameState.usedWords.length - 1] || getRandomWord(room);
+            }
         }
 
         io.to(roomCode).emit('roomUpdated', getSafeRoom(room));
