@@ -261,15 +261,16 @@ function App() {
     </div>
   );
 
-  // ФУНКЦІЯ: ВІДМАЛЬОВКА АРХІВУ ІСТОРІЇ КОМАНДИ
+// ФУНКЦІЯ: ВІДМАЛЬОВКА АРХІВУ ІСТОРІЇ КОМАНДИ
   const renderTeamHistory = (teamId) => {
     const history = room.gameState.fullHistory?.filter(h => h.teamId === teamId) || [];
     if (history.length === 0) return <div className="muted" style={{ padding: '10px 0', fontSize: '0.9rem' }}>Історія поки порожня</div>;
 
     const laps = {};
-    history.forEach((h, index) => {
+    history.forEach((h) => {
         if (!laps[h.lap]) laps[h.lap] = [];
-        laps[h.lap].push({ ...h, roundNum: index + 1 });
+        // 🔥 ФІКС: Тепер раунди рахуються всередині кожного кола (Раунд 1, Раунд 2)
+        laps[h.lap].push({ ...h, roundNum: laps[h.lap].length + 1 });
     });
 
     return (
