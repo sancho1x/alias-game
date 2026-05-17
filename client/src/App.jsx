@@ -298,13 +298,32 @@ function App() {
     );
   };
 
-  if (room.gameState.status === 'countdown') {
+if (room.gameState.status === 'countdown') {
+    // Знаходимо активну команду та хто зараз пояснює/відгадує
+    const activeTeam = room.teams.find(t => t.id === room.gameState.currentTeamId);
+    const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
+    const activeExplainer = room.players.find(p => p.id === room.gameState.currentExplainerId);
+    const expIdx = teamPlayers.findIndex(p => p.id === activeExplainer?.id);
+    const activeGuesser = teamPlayers[(expIdx + 1) % (teamPlayers.length || 1)];
+
     return (
       <>
         <ErrorToast />
         <div className="app-wrapper game-mode" style={{ justifyContent: 'center', alignItems: 'center' }}>
-          <h2 style={{ color: 'white', marginBottom: '20px', fontSize: '2rem' }}>Готуйтесь!</h2>
-          <h1 style={{ fontSize: '10rem', color: 'var(--accent-yellow)', margin: '0' }}>{localTimer}</h1>
+          <h2 style={{ color: 'white', marginBottom: '15px', fontSize: '2.5rem' }}>Готуйтесь!</h2>
+          
+          {/* 🔥 НОВИЙ КОД: Блок з інформацією про ролі */}
+          {activeTeam && (
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '20px 40px', borderRadius: '15px', textAlign: 'center', marginBottom: '20px', border: '1px dashed var(--accent-yellow)' }}>
+                  <h3 style={{ color: 'var(--accent-green)', marginBottom: '10px', fontSize: '1.5rem' }}>{activeTeam.name}</h3>
+                  <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
+                      Пояснює: <strong style={{ color: 'white' }}>{activeExplainer?.name || '...'}</strong><br/>
+                      Відгадує: <strong style={{ color: 'white' }}>{activeGuesser?.name || '...'}</strong>
+                  </p>
+              </div>
+          )}
+
+          <h1 style={{ fontSize: '10rem', color: 'var(--accent-yellow)', margin: '0', textShadow: '0 0 20px rgba(255, 195, 18, 0.4)' }}>{localTimer}</h1>
         </div>
       </>
     );
