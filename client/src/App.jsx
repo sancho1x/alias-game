@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import './App.css';
 
 // 🚨🚨 ВСТАВ СВІЙ CLIENT ID З TWITCH DEVELOPER CONSOLE ТУТ 🚨🚨
-const TWITCH_CLIENT_ID = 'fh66pb8rdh6mr32melibkiybfvhipr'; 
+const TWITCH_CLIENT_ID = 'ТВІЙ_CLIENT_ID_ТУТ'; 
 const REDIRECT_URI = window.location.origin;
 
 const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
@@ -29,8 +29,11 @@ function App() {
   const [localTimer, setLocalTimer] = useState(0);
   
   const [appError, setAppError] = useState('');
+  
+  // НОВІ СТАНИ ДЛЯ РЕЖИМУ СТРІМЕРА
+  const [isCodeVisible, setIsCodeVisible] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
-  // Обчислюємо поточний справжній ID гравця (щоб коректно відображати хоста на клієнті)
   const currentPlayerId = isTwitchAuth ? `twitch_${playerName}` : basePlayerId;
 
   useEffect(() => {
@@ -93,7 +96,6 @@ function App() {
         setTimeout(() => setAppError(''), 4000);
     });
 
-    // ОБРОБКА КІКУ
     socket.on('kicked', () => {
         setRoom(null);
         setRoomCode('');
@@ -137,6 +139,15 @@ function App() {
   const handleShuffleTeams = () => socket.emit('shuffleTeams', { roomCode: room.id });
   const handleResetGame = () => { if(window.confirm('Скинути всі рахунки та кола до нуля?')) socket.emit('resetGame', { roomCode: room.id }); };
   const handleKickPlayer = (targetId) => { if(window.confirm('Точно вигнати гравця? Він не зможе повернутися.')) socket.emit('kickPlayer', { roomCode: room.id, targetPlayerId: targetId }); };
+
+  // ФУНКЦІЯ КОПІЮВАННЯ КОДУ
+  const handleCopyCode = () => {
+    if (room && room.id) {
+      navigator.clipboard.writeText(room.id);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   const ErrorToast = () => appError ? (
     <div style={{
@@ -400,8 +411,43 @@ function App() {
       <ErrorToast />
       <div className="app-wrapper">
         <div className="container">
-          <div className="room-code-display" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Код: <strong>{room.id}</strong></span>
+          
+          {/* ОНОВЛЕНИЙ БЛОК ВІДОБРАЖЕННЯ КОДУ */}
+          <div className="room-code-display" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Код:</span>
+                  <strong 
+                      onClick={() => setIsCodeVisible(!isCodeVisible)}
+                      title="Натисніть, щоб показати/сховати"
+                      style={{ 
+                          cursor: 'pointer', 
+                          letterSpacing: isCodeVisible ? 'normal' : '3px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          minWidth: '60px',
+                          textAlign: 'center',
+                          userSelect: 'none'
+                      }}
+                  >
+                      {isCodeVisible ? room.id : '****'}
+                  </strong>
+                  <button 
+                      onClick={handleCopyCode}
+                      title="Скопіювати код"
+                      style={{ 
+                          background: 'transparent', 
+                          border: 'none', 
+                          cursor: 'pointer', 
+                          fontSize: '1.2rem', 
+                          padding: '0',
+                          display: 'flex',
+                          alignItems: 'center'
+                      }}
+                  >
+                      {isCopied ? '✅' : '📋'}
+                  </button>
+              </div>
               <span style={{ color: 'var(--accent-yellow)' }}>Коло {currentLap} / {totalLapsDisplay}</span>
           </div>
           
