@@ -625,39 +625,50 @@ function App() {
                 
                 const isExpanded = expandedTeams[t.id];
 
-                return (
-                  <div key={t.id} className="team-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span 
-                            style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            onClick={() => setExpandedTeams(prev => ({...prev, [t.id]: !prev[t.id]}))}
-                            title="Натисни, щоб переглянути історію раундів"
-                          >
-                            <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-                            {t.name} <span className="muted" style={{ fontWeight: 'normal' }}>({teamPlayers.length}/2)</span>
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', marginLeft: '25px' }}>
-                            {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
-                            <strong className="score-pill">{t.score} балів</strong>
-                            {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
-                          </div>
-                        </div>
-                        <div className="team-actions">
-                          {amIInThisTeam ? (
-                            <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)', paddingRight: '10px' }}>Твоя команда</span>
-                          ) : !isFull ? (
-                            <button className="join-btn" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
-                          ) : <span className="muted" style={{ paddingRight: '10px' }}>Заповнена</span>}
-                          {isHost && !isGamePausedInLobby && <button className="delete-btn" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>}
-                        </div>
-                    </div>
-                    
-                    {/* РОЗКРИТТЯ ІСТОРІЇ */}
-                    {isExpanded && renderTeamHistory(t.id)}
-                  </div>
-                );
-              })}
+return (
+    <div key={t.id} className="team-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+      
+      {/* ГОЛОВНИЙ РЯДОК КАРТКИ */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          
+          {/* Ліва частина: Назва і Бали */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+            <span 
+              style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none' }}
+              onClick={() => setExpandedTeams(prev => ({...prev, [t.id]: !prev[t.id]}))}
+              title="Натисни, щоб переглянути історію раундів"
+            >
+              <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+              {t.name} <span className="muted" style={{ fontWeight: 'normal' }}>({teamPlayers.length}/2)</span>
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '25px' }}>
+              {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
+              <strong className="score-pill">{t.score} балів</strong>
+              {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
+            </div>
+          </div>
+
+          {/* Права частина: Статус і Видалення */}
+          <div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {amIInThisTeam ? (
+              <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>Твоя команда</span>
+            ) : !isFull ? (
+              <button className="join-btn" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
+            ) : (
+              <span className="muted">Заповнена</span>
+            )}
+            {isHost && !isGamePausedInLobby && (
+              <button className="delete-btn" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>
+            )}
+          </div>
+
+      </div>
+      
+      {/* РОЗКРИТТЯ ІСТОРІЇ */}
+      {isExpanded && renderTeamHistory(t.id)}
+    </div>
+  );
+})}
             </div>
           </div>
 
