@@ -1,221 +1,643 @@
-:root {
-  --bg-dark: #121218;
-  --panel-bg: #1e1e26;
-  --accent-red: #ff4757;
-  --accent-red-hover: #ff6b81;
-  --accent-green: #2ed573;
-  --accent-green-hover: #7bed9f;
-  --accent-yellow: #ffc312;
-  --text-main: #ffffff;
-  --text-muted: #8395a7;
-  --border-color: #2f3542;
+import { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
+import './App.css';
+
+// 🚨🚨 ВСТАВ СВІЙ CLIENT ID З TWITCH DEVELOPER CONSOLE ТУТ 🚨🚨
+const TWITCH_CLIENT_ID = 'fh66pb8rdh6mr32melibkiybfvhipr'; 
+const REDIRECT_URI = window.location.origin;
+
+const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
+const socket = io(BACKEND_URL);
+
+const getPersistentId = () => {
+  let id = localStorage.getItem('alias_player_id');
+  if (!id) {
+    id = 'p_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('alias_player_id', id);
+  }
+  return id;
+};
+
+const basePlayerId = getPersistentId();
+
+function App() {
+  const [playerName, setPlayerName] = useState('');
+  const [isTwitchAuth, setIsTwitchAuth] = useState(false);
+  const [roomCode, setRoomCode] = useState('');
+  const [room, setRoom] = useState(null);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [localTimer, setLocalTimer] = useState(0);
+  
+  const [appError, setAppError] = useState('');
+  
+  const [isCodeVisible, setIsCodeVisible] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const currentPlayerId = isTwitchAuth ? `twitch_${playerName}` : basePlayerId;
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      window.history.replaceState(null, '', window.location.pathname);
+      
+      fetch('https://api.twitch.tv/helix/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Client-Id': TWITCH_CLIENT_ID
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && data.data.length > 0) {
+           const twitchName = data.data[0].display_name;
+           localStorage.setItem('alias_twitch_name', twitchName);
+           
+           if (window.opener) {
+               window.close();
+           } else {
+               setPlayerName(twitchName);
+               setIsTwitchAuth(true);
+           }
+        }
+      }).catch(err => console.error("Помилка Twitch", err));
+    } else {
+       const savedTwitchName = localStorage.getItem('alias_twitch_name');
+       if (savedTwitchName) {
+           setPlayerName(savedTwitchName);
+           setIsTwitchAuth(true);
+       }
+    }
+
+    const handleStorageChange = (e) => {
+        if (e.key === 'alias_twitch_name') {
+            if (e.newValue) {
+                setPlayerName(e.newValue);
+                setIsTwitchAuth(true);
+            } else {
+                setPlayerName('');
+                setIsTwitchAuth(false);
+            }
+        }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    socket.on('roomCreated', setRoom);
+    socket.on('roomUpdated', (data) => { 
+      setRoom(data); 
+      setLocalTimer(data.gameState.timeLeft); 
+    });
+    socket.on('timerUpdate', setLocalTimer);
+    
+    socket.on('error', (msg) => {
+        setAppError(msg);
+        setTimeout(() => setAppError(''), 4000);
+    });
+
+    socket.on('kicked', () => {
+        setRoom(null);
+        setRoomCode('');
+        setAppError('Вас вигнали з кімнати!');
+        setTimeout(() => setAppError(''), 5000);
+    });
+
+    const pingInterval = setInterval(() => {
+      fetch(`${BACKEND_URL}/ping`).catch(() => {});
+    }, 10 * 60 * 1000); 
+
+    return () => {
+      socket.removeAllListeners();
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(pingInterval);
+    };
+  }, []);
+
+  const handleTwitchLogin = () => {
+    const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token`;
+    const width = 500;
+    const height = 650;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    window.open(url, 'TwitchAuth', `width=${width},height=${height},left=${left},top=${top}`);
+  };
+
+  const handleTwitchLogout = () => {
+    localStorage.removeItem('alias_twitch_name');
+    setPlayerName('');
+    setIsTwitchAuth(false);
+  };
+
+  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId: basePlayerId, isTwitchAuth });
+  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth });
+  const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
+  
+  const handleCreateTeam = () => { if (newTeamName) { socket.emit('createTeam', { roomCode: room.id, teamName: newTeamName }); setNewTeamName(''); } };
+  const handleDeleteTeam = (teamId) => socket.emit('deleteTeam', { roomCode: room.id, teamId });
+  const handleAdjustScore = (teamId, amount) => socket.emit('adjustScore', { roomCode: room.id, teamId, amount });
+  const handleShuffleTeams = () => socket.emit('shuffleTeams', { roomCode: room.id });
+  const handleResetGame = () => { if(window.confirm('Скинути всі рахунки та кола до нуля?')) socket.emit('resetGame', { roomCode: room.id }); };
+  const handleKickPlayer = (targetId) => { if(window.confirm('Точно вигнати гравця? Він не зможе повернутися.')) socket.emit('kickPlayer', { roomCode: room.id, targetPlayerId: targetId }); };
+
+  const handleCopyCode = () => {
+    if (room && room.id) {
+      navigator.clipboard.writeText(room.id);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  // ФУНКЦІЯ: Перевірка та старт з лобі
+  const handleStartGameLobby = () => {
+    const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+    
+    // Якщо гра вже повністю відіграна
+    if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
+        if (window.confirm('Гру вже завершено! Бажаєте скинути рахунки і почати нове коло?')) {
+            socket.emit('resetGame', { roomCode: room.id });
+            // Чекаємо півсекунди, щоб бекенд встиг скинути стани
+            setTimeout(() => {
+                if (room.players.some(p => p.teamId !== null && !p.online)) {
+                    setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
+                    setTimeout(() => setAppError(''), 4000);
+                    return;
+                }
+                socket.emit('startTurn', { roomCode: room.id });
+            }, 500);
+        }
+        return;
+    }
+
+    // Перевірка на офлайн
+    if (room.players.some(p => p.teamId !== null && !p.online)) {
+        setAppError('Один з гравців у командах не в мережі! Дочекайтесь його або замініть.');
+        setTimeout(() => setAppError(''), 4000);
+        return;
+    }
+
+    socket.emit('startTurn', { roomCode: room.id });
+  };
+
+  // ФУНКЦІЯ: Перевірка та старт з екрану результатів
+  const handleStartTurnFromScoreboard = () => {
+      if (room.players.some(p => p.teamId !== null && !p.online)) {
+          setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
+          setTimeout(() => setAppError(''), 4000);
+          return;
+      }
+      socket.emit('startTurn', { roomCode: room.id });
+  };
+
+  const ErrorToast = () => appError ? (
+    <div style={{
+        position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+        backgroundColor: 'var(--accent-red)', color: 'white', padding: '15px 30px',
+        borderRadius: '10px', zIndex: 9999, fontWeight: 'bold', 
+        boxShadow: '0 4px 15px rgba(255, 71, 87, 0.4)', textAlign: 'center'
+    }}>
+      {appError}
+    </div>
+  ) : null;
+
+  if (!room) {
+    return (
+      <>
+        <ErrorToast />
+        <div className="app-wrapper">
+          <div className="container">
+            <h1 className="logo-title">ЕЛІАС</h1>
+            
+            {isTwitchAuth ? (
+              <div style={{ textAlign: 'center', backgroundColor: '#3d4554', padding: '15px', borderRadius: '12px' }}>
+                <p style={{ marginBottom: '10px' }}>Увійшли через Twitch як: <strong style={{ color: '#a970ff' }}>{playerName}</strong></p>
+                <button className="ghost-btn" style={{ padding: '8px 15px', fontSize: '0.9rem' }} onClick={handleTwitchLogout}>Вийти з Twitch</button>
+              </div>
+            ) : (
+              <>
+                <input type="text" placeholder="Нікнейм" value={playerName} onChange={e => setPlayerName(e.target.value)} />
+                <button style={{ backgroundColor: '#a970ff', color: 'white' }} onClick={handleTwitchLogin}>📺 Увійти через Twitch</button>
+              </>
+            )}
+
+            <div className="divider">Створити гру</div>
+            <button className="primary-btn" onClick={handleCreateRoom} disabled={!playerName}>Створити кімнату</button>
+            
+            <div className="divider">АБО</div>
+            <input type="text" placeholder="Введіть код" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
+            <button className="secondary-btn" onClick={handleJoinRoom} disabled={!playerName || !roomCode}>Увійти в кімнату</button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const isHost = room.hostId === currentPlayerId;
+  const currentTeam = room.teams[room.gameState.currentTeamIndex];
+  const myPlayerInfo = room.players.find(p => p.playerId === currentPlayerId);
+
+  const renderPlayersList = (compact = false) => (
+    <div className="players-list">
+      <h3>Гравці {compact && 'у кімнаті'}</h3>
+      <ul style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {room.players.map(p => (
+          <li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ color: p.online ? 'inherit' : 'var(--text-muted)' }}>
+                {p.isTwitch && <span style={{ marginRight: '5px' }} title="Авторизований через Twitch">📺</span>}
+                {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
+                {!p.online && " (не в мережі)"}
+              </span>
+              <span className="muted" style={{ marginLeft: '10px' }}>
+                {room.teams.find(t => t.id === p.teamId) ? `(${room.teams.find(t => t.id === p.teamId).name})` : ''}
+              </span>
+            </div>
+            {isHost && p.playerId !== currentPlayerId && !compact && (
+                <button 
+                  onClick={() => handleKickPlayer(p.playerId)} 
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+                  title="Вигнати гравця"
+                >
+                  💀
+                </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  if (room.gameState.status === 'countdown') {
+    return (
+      <>
+        <ErrorToast />
+        <div className="app-wrapper game-mode" style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <h2 style={{ color: 'white', marginBottom: '20px', fontSize: '2rem' }}>Готуйтесь!</h2>
+          <h1 style={{ fontSize: '10rem', color: 'var(--accent-yellow)', margin: '0' }}>{localTimer}</h1>
+        </div>
+      </>
+    );
+  }
+
+  if (room.gameState.status === 'paused') {
+    const canResume = isHost || room.gameState.currentExplainerId === socket.id;
+    return (
+      <>
+        <ErrorToast />
+        <div className="app-wrapper game-mode" style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '4rem', color: 'var(--accent-yellow)', marginBottom: '30px' }}>ПАУЗА</h1>
+          {room.gameState.autoPausedBySystem && (
+             <p style={{ color: 'var(--accent-red)', marginBottom: '20px', textAlign: 'center' }}>Один з активних гравців втратив з'єднання!</p>
+          )}
+          {canResume ? (
+            <div style={{ display: 'flex', gap: '15px', flexDirection: 'column' }}>
+              <button className="btn-correct" style={{ padding: '20px 40px', fontSize: '1.5rem' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id, action: 'resume' })}>
+                Продовжити гру
+              </button>
+              <button className="ghost-btn" style={{ padding: '15px' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
+                В лобі (Таймер зупиниться)
+              </button>
+            </div>
+          ) : (
+            <p className="muted" style={{ fontSize: '1.2rem' }}>Очікуємо, поки ведучий зніме гру з паузи...</p>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
+    const isExplainer = room.gameState.currentExplainerId === socket.id;
+    const isMyTeamPlaying = room.gameState.currentTeamId === myPlayerInfo?.teamId;
+    const isLast = room.gameState.status === 'last_word';
+    
+    return (
+      <>
+        <ErrorToast />
+        <div className="app-wrapper game-mode">
+          <div className="game-header">
+            <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
+              <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
+              <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
+                Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {(isHost || isExplainer) && !isLast && (
+                <>
+                  <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
+                    ⏸
+                  </button>
+                  <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
+                    🏠
+                  </button>
+                </>
+              )}
+              <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
+                {isLast ? 'ОСТАННЄ' : localTimer}
+              </div>
+            </div>
+          </div>
+          
+          <div className="game-board">
+            {isExplainer ? (
+              <>
+                <div className="word-container"><h1 className="main-word">{room.gameState.currentWord}</h1></div>
+                <div className="action-buttons">
+                  {!isLast ? (
+                    <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>
+                  ) : (
+                    <button className="secondary-btn" onClick={() => socket.emit('lastWordResult', { roomCode: room.id, isCorrect: false })}>Не вгадали (0)</button>
+                  )}
+                  <button className="btn-correct" onClick={() => socket.emit(isLast ? 'lastWordResult' : 'nextWord', { roomCode: room.id, isCorrect: true })}>Вгадали (+1)</button>
+                </div>
+              </>
+            ) : (
+              <div className="guesser-view">
+                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
+                  {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
+                </h1>
+                <div className="word-history">
+                  {room.gameState.roundHistory.map((item, idx) => (
+                    <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
+    const isGameOver = room.gameState.status === 'game_over';
+    
+    // Розрахунок ролей для наступної команди
+    const nextTeam = room.teams[room.gameState.currentTeamIndex];
+    const nextTeamPlayers = room.players.filter(p => p.teamId === nextTeam?.id);
+    const nextExplainerIdx = (room.gameState.explainerIndices[nextTeam?.id] || 0) % (nextTeamPlayers.length || 1);
+    const nextExplainer = nextTeamPlayers[nextExplainerIdx];
+    const nextGuesser = nextTeamPlayers[(nextExplainerIdx + 1) % (nextTeamPlayers.length || 1)];
+    
+    const canEditWords = isHost || socket.id === room.gameState.lastExplainerId;
+
+    return (
+      <>
+        <ErrorToast />
+        <div className="app-wrapper">
+          <div className="container end-turn-container">
+            {isGameOver ? (
+              <h1 className="text-success" style={{ textAlign: 'center', marginBottom: '10px', fontSize: '2.5rem' }}>🏆 ГРА ЗАВЕРШЕНА!</h1>
+            ) : (
+              <h1 className="text-danger" style={{ textAlign: 'center', marginBottom: '10px' }}>Хід завершено! 🏁</h1>
+            )}
+            
+            {canEditWords && !isGameOver && (
+              <p className="muted" style={{ textAlign: 'center', marginBottom: '15px' }}>Натискай на слова, щоб змінити їх статус (Зелений: +1, Сірий: 0, Червоний: -1)</p>
+            )}
+
+            <div className="word-history" style={{ marginBottom: '30px' }}>
+              {room.gameState.roundHistory.map((item, idx) => (
+                <span 
+                  key={idx} 
+                  className={`history-pill ${item.status} ${canEditWords ? 'clickable' : ''}`}
+                  onClick={() => canEditWords && socket.emit('toggleWord', { roomCode: room.id, wordIndex: idx })}
+                >
+                  {item.word}
+                </span>
+              ))}
+            </div>
+
+            <div className="score-board">
+              <h3 style={{ marginBottom: '15px' }}>Рахунок:</h3>
+              {[...room.teams].sort((a, b) => b.score - a.score).map(t => (
+                <div key={t.id} className="score-row">
+                  <span>{t.name}</span><strong className="text-success">{t.score}</strong>
+                </div>
+              ))}
+            </div>
+
+            {/* ВІДОБРАЖЕННЯ РОЛЕЙ (ПОЯСНЮЄ/ВІДГАДУЄ) */}
+            {!isGameOver && (
+              <div className="next-team-announcement" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '15px', borderRadius: '10px' }}>
+                <h3>Наступні: <span className="text-success">{nextTeam?.name}</span></h3>
+                <p className="muted" style={{ marginTop: '10px', fontSize: '1.1rem', lineHeight: '1.5' }}>
+                  Пояснює: <strong style={{ color: 'white' }}>{nextExplainer?.name || '...'}</strong> <br/>
+                  Відгадує: <strong style={{ color: 'white' }}>{nextGuesser?.name || '...'}</strong>
+                </p>
+              </div>
+            )}
+            
+            {isHost ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+                {!isGameOver && <button className="mega-btn" onClick={handleStartTurnFromScoreboard}>▶ ПОЧАТИ ХІД</button>}
+                <button className="ghost-btn" onClick={() => socket.emit('endGame', { roomCode: room.id })}>В лобі (Новий раунд)</button>
+              </div>
+            ) : (
+              <p className="muted" style={{ marginTop: '20px', textAlign: 'center' }}>Очікуємо рішення хоста...</p>
+            )}
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
+            {renderPlayersList(true)}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // --- ЛОБІ ---
+  
+  // ФІКС ЛОГІКИ КОЛА
+  const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+  let currentLap = Math.floor(room.gameState.turnsTaken / (room.teams.length * 2 || 1)) + 1;
+  // Якщо гра завершена, не показуємо "зайве" коло
+  if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
+      currentLap = room.settings.laps; 
+  }
+  
+  const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
+  const isGamePausedInLobby = room.gameState.pausedState === 'active_turn';
+
+  return (
+    <>
+      <ErrorToast />
+      <div className="app-wrapper">
+        <div className="container">
+          
+          <div className="room-code-display" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Код:</span>
+                  <strong 
+                      onClick={() => setIsCodeVisible(!isCodeVisible)}
+                      title="Натисніть, щоб показати/сховати"
+                      style={{ 
+                          cursor: 'pointer', 
+                          letterSpacing: isCodeVisible ? 'normal' : '3px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          minWidth: '60px',
+                          textAlign: 'center',
+                          userSelect: 'none'
+                      }}
+                  >
+                      {isCodeVisible ? room.id : '****'}
+                  </strong>
+                  <button 
+                      onClick={handleCopyCode}
+                      title="Скопіювати код"
+                      style={{ 
+                          background: 'transparent', 
+                          border: 'none', 
+                          cursor: 'pointer', 
+                          fontSize: '1.2rem', 
+                          padding: '0',
+                          display: 'flex',
+                          alignItems: 'center'
+                      }}
+                  >
+                      {isCopied ? '✅' : '📋'}
+                  </button>
+              </div>
+              <span style={{ color: 'var(--accent-yellow)' }}>Коло {currentLap} / {totalLapsDisplay}</span>
+          </div>
+          
+          {isHost && room.teams.length > 0 && (
+            isGamePausedInLobby ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                <button className="mega-btn pulse" style={{ backgroundColor: 'var(--accent-green)' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id, action: 'resume' })}>
+                  ▶ ПРОДОВЖИТИ ПЕРЕРВАНИЙ ХІД
+                </button>
+                <button className="ghost-btn" style={{ borderColor: 'var(--accent-yellow)', color: 'var(--accent-yellow)' }} onClick={() => {
+                  if(window.confirm('Ви впевнені? Всі бали, зароблені за цей хід, будуть скасовані, і гравець почне свої секунди заново з новими словами.')) {
+                    socket.emit('resumeGame', { roomCode: room.id, action: 'restart_turn' });
+                  }
+                }}>
+                  🔄 ПОЧАТИ ХІД З НУЛЯ (З НОВИМИ НАЛАШТУВАННЯМИ)
+                </button>
+              </div>
+            ) : (
+              <button className="mega-btn pulse" onClick={handleStartGameLobby}>
+                ▶ ПОЧАТИ ГРУ
+              </button>
+            )
+          )}
+
+          <div className="settings-panel">
+            <h3>Налаштування {isHost ? '⚙️' : '(Тільки хост)'}</h3>
+            {isHost ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: 'rgba(169, 112, 255, 0.1)', borderRadius: '8px', border: '1px solid #a970ff' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={room.settings.requireTwitchAuth} 
+                    onChange={e => updateSettings({ requireTwitchAuth: e.target.checked })} 
+                    style={{ width: 'auto' }}
+                  />
+                  Обов'язковий вхід через Twitch
+                </label>
+
+                <label>Час раунду: 
+                  <select value={room.settings.timer} onChange={e => updateSettings({ timer: Number(e.target.value) })} disabled={isGamePausedInLobby} style={{ marginTop: '5px' }}>
+                    <option value="30">30 сек</option><option value="60">60 сек</option><option value="90">90 сек</option>
+                  </select>
+                </label>
+                
+                <label>Словник: 
+                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} disabled={isGamePausedInLobby} style={{ marginTop: '5px' }}>
+                    <option value="easy">Лайт (Прості)</option><option value="medium">Медіум (Середні)</option>
+                    <option value="hard">Хард (Складні)</option><option value="gamer">Геймерський</option>
+                    <option value="custom">Свій словник</option>
+                  </select>
+                </label>
+
+                <label>Кількість кіл (до перемоги): 
+                  <select value={room.settings.laps} onChange={e => updateSettings({ laps: e.target.value })} style={{ marginTop: '5px' }}>
+                    <option value="infinity">Безкінечно</option><option value="1">1 коло</option>
+                    <option value="3">3 кола</option><option value="5">5 кіл</option>
+                  </select>
+                </label>
+
+                {room.settings.dictType === 'custom' && (
+                  <textarea 
+                    placeholder="Введіть слова через пробіл або кому..." 
+                    defaultValue={room.settings.customWords?.join(', ')} 
+                    onBlur={e => updateSettings({ customWords: e.target.value.split(/[\s,]+/).filter(w => w) })}
+                    disabled={isGamePausedInLobby}
+                    style={{ minHeight: '100px', marginTop: '5px' }}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="read-only-settings" style={{ marginTop: '15px' }}>
+                <p>Обов'язковий Twitch: <strong style={{ color: room.settings.requireTwitchAuth ? 'var(--accent-green)' : 'inherit' }}>{room.settings.requireTwitchAuth ? 'Так' : 'Ні'}</strong></p>
+                <p>Час: <strong>{room.settings.timer} сек</strong></p>
+                <p>Словник: <strong>{room.settings.dictType}</strong></p>
+                <p>Кіл: <strong>{room.settings.laps === 'infinity' ? 'Безкінечно' : room.settings.laps}</strong></p>
+              </div>
+            )}
+          </div>
+
+          <div className="teams-list">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>{room.teams.some(t => t.score !== 0) ? '🏆 Турнірна таблиця' : 'Команди'}</h3>
+              {isHost && room.players.filter(p => p.teamId).length > 0 && !isGamePausedInLobby && (
+                  <button className="secondary-btn" style={{ padding: '8px 15px', fontSize: '0.9rem' }} onClick={handleShuffleTeams}>🔀 Мікс</button>
+              )}
+            </div>
+            
+            <div className="input-group inline" style={{ marginBottom: '15px', marginTop: '15px' }}>
+              <input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} disabled={isGamePausedInLobby} />
+              <button onClick={handleCreateTeam} disabled={isGamePausedInLobby}>+</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[...room.teams].sort((a, b) => b.score - a.score).map(t => {
+                const teamPlayers = room.players.filter(p => p.teamId === t.id);
+                const isFull = teamPlayers.length >= 2;
+                const amIInThisTeam = myPlayerInfo?.teamId === t.id;
+
+                return (
+                  <div key={t.id} className="team-card">
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                        {t.name} <span className="muted" style={{ fontWeight: 'normal' }}>({teamPlayers.length}/2)</span>
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                        {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
+                        <strong className="score-pill">{t.score} балів</strong>
+                        {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
+                      </div>
+                    </div>
+                    <div className="team-actions">
+                      {amIInThisTeam ? (
+                        <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)', paddingRight: '10px' }}>Твоя команда</span>
+                      ) : !isFull ? (
+                        <button className="join-btn" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
+                      ) : <span className="muted" style={{ paddingRight: '10px' }}>Заповнена</span>}
+                      {isHost && !isGamePausedInLobby && <button className="delete-btn" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {renderPlayersList()}
+
+          {isHost && !isGamePausedInLobby && (
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                  <button className="ghost-btn" style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)' }} onClick={handleResetGame}>
+                      ⚠️ Скинути прогрес та рахунки
+                  </button>
+              </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body, html, #root {
-  width: 100%;
-  height: 100%;
-  background-color: var(--bg-dark);
-  color: var(--text-main);
-  font-family: 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
-}
-
-.app-wrapper {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 15px;
-}
-
-.container {
-  background-color: var(--panel-bg);
-  border-radius: 20px;
-  padding: 25px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.logo-title {
-  color: var(--accent-red);
-  font-size: 3rem;
-  text-align: center;
-  font-weight: 900;
-  letter-spacing: 2px;
-}
-
-input, select, textarea {
-  width: 100%;
-  padding: 15px;
-  border-radius: 12px;
-  border: 2px solid var(--border-color);
-  background-color: var(--bg-dark);
-  color: white;
-  font-size: 1.1rem;
-  outline: none;
-}
-
-button {
-  padding: 15px;
-  border-radius: 12px;
-  border: none;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-  text-transform: uppercase;
-}
-
-button:active {
-  transform: scale(0.95);
-}
-
-.primary-btn { background-color: var(--accent-red); color: white; }
-.secondary-btn { background-color: var(--border-color); color: white; }
-.mega-btn { background-color: var(--accent-yellow); color: black; font-size: 1.4rem; padding: 20px; }
-.ghost-btn { background-color: transparent; color: var(--text-muted); border: 2px solid var(--border-color); }
-
-.score-pill {
-  background-color: rgba(46, 213, 115, 0.15);
-  color: var(--accent-green);
-  padding: 4px 12px;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-
-.score-adjust {
-  background-color: var(--border-color);
-  color: white;
-  padding: 2px 12px;
-  border-radius: 6px;
-  font-size: 1.2rem;
-}
-
-.team-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--bg-dark);
-  padding: 15px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.team-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.input-group.inline {
-  display: flex;
-  gap: 10px;
-}
-
-.input-group.inline input { flex: 1; }
-.input-group.inline button { padding: 0 20px; font-size: 1.5rem; }
-
-/* ФІКС ПРОБІЛІВ ДЛЯ СПИСКУ РАХУНКІВ */
-.score-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  background-color: var(--bg-dark);
-  margin-bottom: 8px;
-  border-radius: 10px;
-  font-size: 1.1rem;
-  border: 1px solid var(--border-color);
-}
-
-.game-mode { padding: 0; height: 100vh; display: flex; flex-direction: column; }
-.game-header { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  padding: 15px 25px; 
-  background-color: var(--panel-bg); 
-  border-bottom: 2px solid var(--border-color); 
-}
-.timer-display { font-size: 3rem; font-weight: 900; }
-.timer-danger { color: var(--accent-red); }
-.timer-warning { color: var(--accent-yellow); font-size: 2rem; }
-
-.game-board {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-}
-
-.main-word { 
-  font-size: clamp(2.5rem, 8vw, 6rem); 
-  text-transform: uppercase; 
-  text-align: center; 
-  width: 100%; 
-  padding: 0 10px; 
-  word-break: normal; 
-  overflow-wrap: break-word; 
-  line-height: 1.1; 
-}
-
-.action-buttons { 
-  display: flex; 
-  gap: 15px; 
-  width: 100%; 
-  padding: 20px; 
-  margin-top: auto; 
-}
-.action-buttons button { flex: 1; padding: 30px 10px; font-size: 1.8rem; border-radius: 15px; }
-.btn-skip { background-color: var(--accent-red); color: white; }
-.btn-correct { background-color: var(--accent-green); color: black; }
-
-.next-team-announcement { 
-  background-color: rgba(255, 195, 18, 0.1); 
-  padding: 20px; 
-  border-radius: 15px; 
-  border: 1px dashed var(--accent-yellow); 
-  margin: 15px 0; 
-  text-align: center; 
-}
-
-.guesser-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%; /* Головний фікс: фіксуємо ширину на максимум */
-}
-
-.word-history {
-  display: flex;
-  flex-wrap: wrap; /* Дозволяє словам переноситися на новий рядок, коли їх багато */
-  justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
-  width: 100%; 
-  max-width: 80%; /* Обмежуємо ширину, щоб слова не розтягувалися на всю діагональ монітора */
-}
-.history-pill { padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 1rem; }
-.history-pill.correct { background-color: rgba(46, 213, 115, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
-.history-pill.skipped { background-color: rgba(255, 71, 87, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
-
-ul { list-style: none; }
-li { padding: 12px 15px; background-color: var(--bg-dark); margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); }
-.muted { color: var(--text-muted); font-size: 0.9rem; }
-.text-success { color: var(--accent-green); }
-.text-danger { color: var(--accent-red); }
-.divider { text-align: center; color: var(--text-muted); font-weight: bold; }
-
-@keyframes pulse { 0% { filter: brightness(1); } 50% { filter: brightness(1.15); } 100% { filter: brightness(1); } }
-.pulse { animation: pulse 2s infinite; }
+export default App;
