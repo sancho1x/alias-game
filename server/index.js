@@ -354,10 +354,16 @@ io.on('connection', (socket) => {
     }, 1000);
   };
 
-  // ФУНКЦІЯ АРХІВУВАННЯ
+// ФУНКЦІЯ АРХІВУВАННЯ
   const saveTurnToHistory = (room) => {
       if ((room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') && room.gameState.roundHistory.length > 0 && room.gameState.lastTeamId) {
-          const currentLap = Math.ceil(room.gameState.turnsTaken / (room.teams.length || 1)) || 1;
+          
+          // 🔥 ФІКС: Правильний розрахунок кола. 
+          // Віднімаємо 1 від зіграних ходів, щоб точно знати, до якого кола належав щойно завершений хід
+          const completedTurns = room.gameState.turnsTaken;
+          const turnsPerLap = (room.teams.length || 1) * 2;
+          const currentLap = Math.floor(Math.max(0, completedTurns - 1) / turnsPerLap) + 1;
+
           const explainer = room.players.find(p => p.id === room.gameState.lastExplainerId);
           
           const teamPlayers = room.players.filter(p => p.teamId === room.gameState.lastTeamId);
@@ -371,7 +377,7 @@ io.on('connection', (socket) => {
               guesserName: guesser ? guesser.name : 'Гравець',
               words: [...room.gameState.roundHistory]
           });
-          room.gameState.roundHistory = []; // Очищуємо поточний, щоб не зберегти двічі
+          room.gameState.roundHistory = []; 
       }
   };
 
