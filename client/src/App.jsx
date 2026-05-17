@@ -402,7 +402,7 @@ function App() {
     );
   }
 
-  if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
+if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
     const isGameOver = room.gameState.status === 'game_over';
     
     const nextTeam = room.teams[room.gameState.currentTeamIndex];
@@ -413,17 +413,28 @@ function App() {
     
     const canEditWords = isHost || socket.id === room.gameState.lastExplainerId;
 
+    // 🔥 НОВИЙ КОД: Математика для відображення прогресу
+    const turnsPerLap = (room.teams.length || 1) * 2;
+    const currentLapNum = Math.ceil(room.gameState.turnsTaken / turnsPerLap) || 1;
+    const currentRoundNum = room.gameState.turnsTaken % turnsPerLap || turnsPerLap;
+    const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
+
     return (
       <>
         <ErrorToast />
         <div className="app-wrapper">
           <div className="container end-turn-container">
             {isGameOver ? (
-              <h1 className="text-success" style={{ textAlign: 'center', marginBottom: '10px', fontSize: '2.5rem' }}>🏆 ГРА ЗАВЕРШЕНА!</h1>
+              <h1 className="text-success" style={{ textAlign: 'center', marginBottom: '5px', fontSize: '2.5rem' }}>🏆 ГРА ЗАВЕРШЕНА!</h1>
             ) : (
-              <h1 className="text-danger" style={{ textAlign: 'center', marginBottom: '10px' }}>Хід завершено! 🏁</h1>
+              <h1 className="text-danger" style={{ textAlign: 'center', marginBottom: '5px' }}>Хід завершено! 🏁</h1>
             )}
             
+            {/* 🔥 НОВИЙ КОД: Візуальний блок з номером раунду та кола */}
+            <p style={{ textAlign: 'center', color: 'var(--accent-yellow)', fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '15px' }}>
+                Раунд {currentRoundNum} з {turnsPerLap}, Коло {currentLapNum} / {totalLapsDisplay}
+            </p>
+
             {canEditWords && !isGameOver && (
               <p className="muted" style={{ textAlign: 'center', marginBottom: '15px' }}>Натискай на слова, щоб змінити їх статус (Зелений: +1, Сірий: 0, Червоний: -1)</p>
             )}
