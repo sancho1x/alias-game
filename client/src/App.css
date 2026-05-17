@@ -190,14 +190,21 @@ button:active {
   text-align: center; 
 }
 
-.word-history { 
-  display: flex; 
-  flex-wrap: wrap; 
-  gap: 10px; 
-  justify-content: center; 
-  padding: 15px; 
-  max-height: 200px; 
-  overflow-y: auto; 
+.guesser-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%; /* Головний фікс: фіксуємо ширину на максимум */
+}
+
+.word-history {
+  display: flex;
+  flex-wrap: wrap; /* Дозволяє словам переноситися на новий рядок, коли їх багато */
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  width: 100%; 
+  max-width: 800px; /* Обмежуємо ширину, щоб слова не розтягувалися на всю діагональ монітора */
 }
 .history-pill { padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 1rem; }
 .history-pill.correct { background-color: rgba(46, 213, 115, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
