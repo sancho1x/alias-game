@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import './App.css';
 
 // 🚨🚨 ВСТАВ СВІЙ CLIENT ID З TWITCH DEVELOPER CONSOLE ТУТ 🚨🚨
-const TWITCH_CLIENT_ID = 'ТВІЙ_CLIENT_ID_ТУТ'; 
+const TWITCH_CLIENT_ID = 'fh66pb8rdh6mr32melibkiybfvhipr'; 
 const REDIRECT_URI = window.location.origin;
 
 const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
