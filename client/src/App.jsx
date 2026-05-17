@@ -487,13 +487,25 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
     );
   }
 
-  // --- ЛОБІ ---
+// --- ЛОБІ ---
   const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
   let currentLap = Math.floor(room.gameState.turnsTaken / (room.teams.length * 2 || 1)) + 1;
   if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) currentLap = room.settings.laps; 
   
   const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
   const isGamePausedInLobby = room.gameState.pausedState === 'active_turn';
+
+  // 🔥 НОВИЙ КОД: Визначаємо, хто грає наступним прямо в лобі
+  const lobbyNextTeam = room.teams[room.gameState.currentTeamIndex] || room.teams[0];
+  let lobbyNextExplainer = null;
+  let lobbyNextGuesser = null;
+  
+  if (lobbyNextTeam) {
+      const teamPlayers = room.players.filter(p => p.teamId === lobbyNextTeam.id);
+      const expIdx = (room.gameState.explainerIndices[lobbyNextTeam.id] || 0) % (teamPlayers.length || 1);
+      lobbyNextExplainer = teamPlayers[expIdx];
+      lobbyNextGuesser = teamPlayers[(expIdx + 1) % (teamPlayers.length || 1)];
+  }
 
   return (
     <>
@@ -523,21 +535,24 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
                   <button 
                       onClick={handleCopyCode}
                       title="Скопіювати код"
-                      style={{ 
-                          background: 'transparent', 
-                          border: 'none', 
-                          cursor: 'pointer', 
-                          fontSize: '1.2rem', 
-                          padding: '0',
-                          display: 'flex',
-                          alignItems: 'center'
-                      }}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0', display: 'flex', alignItems: 'center' }}
                   >
                       {isCopied ? '✅' : '📋'}
                   </button>
               </div>
               <span style={{ color: 'var(--accent-yellow)' }}>Коло {currentLap} / {totalLapsDisplay}</span>
           </div>
+
+          {/* 🔥 НОВИЙ КОД: Відмальовуємо блок "Наступні" перед кнопками */}
+          {lobbyNextTeam && (
+              <div className="next-team-announcement" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '15px', borderRadius: '10px', marginTop: '20px', marginBottom: '10px', textAlign: 'center', border: '1px dashed var(--accent-yellow)' }}>
+                <h3 style={{ fontSize: '1.2rem', margin: '0 0 8px 0' }}>Зараз стартують: <span className="text-success">{lobbyNextTeam.name}</span></h3>
+                <p className="muted" style={{ margin: 0, fontSize: '1rem', lineHeight: '1.5' }}>
+                  Пояснює: <strong style={{ color: 'white' }}>{lobbyNextExplainer?.name || '...'}</strong> <br/>
+                  Відгадує: <strong style={{ color: 'white' }}>{lobbyNextGuesser?.name || '...'}</strong>
+                </p>
+              </div>
+          )}
           
           {isHost && room.teams.length > 0 && (
             isGamePausedInLobby ? (
