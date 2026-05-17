@@ -30,7 +30,6 @@ function App() {
   
   const [appError, setAppError] = useState('');
   
-  // НОВІ СТАНИ ДЛЯ РЕЖИМУ СТРІМЕРА
   const [isCodeVisible, setIsCodeVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -140,13 +139,53 @@ function App() {
   const handleResetGame = () => { if(window.confirm('Скинути всі рахунки та кола до нуля?')) socket.emit('resetGame', { roomCode: room.id }); };
   const handleKickPlayer = (targetId) => { if(window.confirm('Точно вигнати гравця? Він не зможе повернутися.')) socket.emit('kickPlayer', { roomCode: room.id, targetPlayerId: targetId }); };
 
-  // ФУНКЦІЯ КОПІЮВАННЯ КОДУ
   const handleCopyCode = () => {
     if (room && room.id) {
       navigator.clipboard.writeText(room.id);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
+  };
+
+  // ФУНКЦІЯ: Перевірка та старт з лобі
+  const handleStartGameLobby = () => {
+    const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+    
+    // Якщо гра вже повністю відіграна
+    if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
+        if (window.confirm('Гру вже завершено! Бажаєте скинути рахунки і почати нове коло?')) {
+            socket.emit('resetGame', { roomCode: room.id });
+            // Чекаємо півсекунди, щоб бекенд встиг скинути стани
+            setTimeout(() => {
+                if (room.players.some(p => p.teamId !== null && !p.online)) {
+                    setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
+                    setTimeout(() => setAppError(''), 4000);
+                    return;
+                }
+                socket.emit('startTurn', { roomCode: room.id });
+            }, 500);
+        }
+        return;
+    }
+
+    // Перевірка на офлайн
+    if (room.players.some(p => p.teamId !== null && !p.online)) {
+        setAppError('Один з гравців у командах не в мережі! Дочекайтесь його або замініть.');
+        setTimeout(() => setAppError(''), 4000);
+        return;
+    }
+
+    socket.emit('startTurn', { roomCode: room.id });
+  };
+
+  // ФУНКЦІЯ: Перевірка та старт з екрану результатів
+  const handleStartTurnFromScoreboard = () => {
+      if (room.players.some(p => p.teamId !== null && !p.online)) {
+          setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
+          setTimeout(() => setAppError(''), 4000);
+          return;
+      }
+      socket.emit('startTurn', { roomCode: room.id });
   };
 
   const ErrorToast = () => appError ? (
@@ -333,10 +372,13 @@ function App() {
 
   if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
     const isGameOver = room.gameState.status === 'game_over';
+    
+    // Розрахунок ролей для наступної команди
     const nextTeam = room.teams[room.gameState.currentTeamIndex];
     const nextTeamPlayers = room.players.filter(p => p.teamId === nextTeam?.id);
-    const nextExplainerIdx = (room.gameState.explainerIndices[nextTeam?.id] || 0) % nextTeamPlayers.length;
-    const nextGuesser = nextTeamPlayers[(nextExplainerIdx + 1) % nextTeamPlayers.length];
+    const nextExplainerIdx = (room.gameState.explainerIndices[nextTeam?.id] || 0) % (nextTeamPlayers.length || 1);
+    const nextExplainer = nextTeamPlayers[nextExplainerIdx];
+    const nextGuesser = nextTeamPlayers[(nextExplainerIdx + 1) % (nextTeamPlayers.length || 1)];
     
     const canEditWords = isHost || socket.id === room.gameState.lastExplainerId;
 
@@ -376,16 +418,20 @@ function App() {
               ))}
             </div>
 
+            {/* ВІДОБРАЖЕННЯ РОЛЕЙ (ПОЯСНЮЄ/ВІДГАДУЄ) */}
             {!isGameOver && (
-              <div className="next-team-announcement">
+              <div className="next-team-announcement" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '15px', borderRadius: '10px' }}>
                 <h3>Наступні: <span className="text-success">{nextTeam?.name}</span></h3>
-                <p className="muted" style={{ marginTop: '10px' }}>Відгадує: <strong>{nextGuesser?.name || '...'}</strong></p>
+                <p className="muted" style={{ marginTop: '10px', fontSize: '1.1rem', lineHeight: '1.5' }}>
+                  Пояснює: <strong style={{ color: 'white' }}>{nextExplainer?.name || '...'}</strong> <br/>
+                  Відгадує: <strong style={{ color: 'white' }}>{nextGuesser?.name || '...'}</strong>
+                </p>
               </div>
             )}
             
             {isHost ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
-                {!isGameOver && <button className="mega-btn" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>▶ ПОЧАТИ ХІД</button>}
+                {!isGameOver && <button className="mega-btn" onClick={handleStartTurnFromScoreboard}>▶ ПОЧАТИ ХІД</button>}
                 <button className="ghost-btn" onClick={() => socket.emit('endGame', { roomCode: room.id })}>В лобі (Новий раунд)</button>
               </div>
             ) : (
@@ -401,9 +447,16 @@ function App() {
   }
 
   // --- ЛОБІ ---
-  const currentLap = Math.floor(room.gameState.turnsTaken / (room.teams.length * 2 || 1)) + 1;
-  const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
   
+  // ФІКС ЛОГІКИ КОЛА
+  const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+  let currentLap = Math.floor(room.gameState.turnsTaken / (room.teams.length * 2 || 1)) + 1;
+  // Якщо гра завершена, не показуємо "зайве" коло
+  if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
+      currentLap = room.settings.laps; 
+  }
+  
+  const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
   const isGamePausedInLobby = room.gameState.pausedState === 'active_turn';
 
   return (
@@ -412,7 +465,6 @@ function App() {
       <div className="app-wrapper">
         <div className="container">
           
-          {/* ОНОВЛЕНИЙ БЛОК ВІДОБРАЖЕННЯ КОДУ */}
           <div className="room-code-display" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>Код:</span>
@@ -466,7 +518,7 @@ function App() {
                 </button>
               </div>
             ) : (
-              <button className="mega-btn pulse" onClick={() => socket.emit('startTurn', { roomCode: room.id })}>
+              <button className="mega-btn pulse" onClick={handleStartGameLobby}>
                 ▶ ПОЧАТИ ГРУ
               </button>
             )
