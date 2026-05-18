@@ -215,6 +215,29 @@ io.on('connection', (socket) => {
         }
     }
   });
+ // 🔥 НОВИЙ КОД: Передача прав хоста
+  socket.on('transferHost', ({ roomCode, newHostId }) => {
+    const room = rooms[roomCode];
+    const host = room?.players.find(p => p.id === socket.id);
+    
+    // Перевіряємо, чи кімната існує і чи запит робить поточний хост
+    if (room && host && room.hostId === host.playerId) {
+        const targetPlayer = room.players.find(p => p.playerId === newHostId);
+        
+        // Якщо новий гравець знайдений, передаємо корону
+        if (targetPlayer) {
+            room.hostId = targetPlayer.playerId;
+            
+            // На всякий випадок чистимо таймер відключення старого хоста, якщо він був
+            if (room.hostTimeoutObj) {
+                clearTimeout(room.hostTimeoutObj);
+                room.hostTimeoutObj = null;
+            }
+            
+            broadcastRoomUpdate(roomCode);
+        }
+    }
+  });   
 
   socket.on('updateSettings', ({ roomCode, settings }) => {
     const room = rooms[roomCode];
