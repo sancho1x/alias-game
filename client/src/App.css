@@ -221,3 +221,50 @@ li { padding: 12px 15px; background-color: var(--bg-dark); margin-bottom: 8px; b
 
 @keyframes pulse { 0% { filter: brightness(1); } 50% { filter: brightness(1.15); } 100% { filter: brightness(1); } }
 .pulse { animation: pulse 2s infinite; }
+
+/* СТИЛІ ДЛЯ КНОПОК КОМАНД */
+.action-btn {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-join {
+  background-color: rgba(46, 213, 115, 0.1);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+}
+
+.btn-join:hover {
+  background-color: var(--accent-green);
+  color: #1e272e;
+}
+
+.btn-leave {
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--text-muted);
+}
+
+.btn-leave:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-delete {
+  background-color: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.5);
+  padding: 6px 10px; /* Трохи менші відступи по боках, щоб кнопка була квадратною */
+  font-size: 0.8rem;
+}
+
+.btn-delete:hover {
+  background-color: rgba(255, 71, 87, 0.3);
+}
