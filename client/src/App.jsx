@@ -33,7 +33,6 @@ function App() {
   const [isCodeVisible, setIsCodeVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  // СТАН ДЛЯ ІСТОРІЇ КОМАНД
   const [expandedTeams, setExpandedTeams] = useState({});
 
   const currentPlayerId = isTwitchAuth ? `twitch_${playerName}` : basePlayerId;
@@ -261,7 +260,6 @@ function App() {
     </div>
   );
 
-// ФУНКЦІЯ: ВІДМАЛЬОВКА АРХІВУ ІСТОРІЇ КОМАНДИ
   const renderTeamHistory = (teamId) => {
     const history = room.gameState.fullHistory?.filter(h => h.teamId === teamId) || [];
     if (history.length === 0) return <div className="muted" style={{ padding: '10px 0', fontSize: '0.9rem' }}>Історія поки порожня</div>;
@@ -269,7 +267,6 @@ function App() {
     const laps = {};
     history.forEach((h) => {
         if (!laps[h.lap]) laps[h.lap] = [];
-        // 🔥 ФІКС: Тепер раунди рахуються всередині кожного кола (Раунд 1, Раунд 2)
         laps[h.lap].push({ ...h, roundNum: laps[h.lap].length + 1 });
     });
 
@@ -298,8 +295,7 @@ function App() {
     );
   };
 
-if (room.gameState.status === 'countdown') {
-    // Знаходимо активну команду та хто зараз пояснює/відгадує
+  if (room.gameState.status === 'countdown') {
     const activeTeam = room.teams.find(t => t.id === room.gameState.currentTeamId);
     const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
     const activeExplainer = room.players.find(p => p.id === room.gameState.currentExplainerId);
@@ -312,7 +308,6 @@ if (room.gameState.status === 'countdown') {
         <div className="app-wrapper game-mode" style={{ justifyContent: 'center', alignItems: 'center' }}>
           <h2 style={{ color: 'white', marginBottom: '15px', fontSize: '2.5rem' }}>Готуйтесь!</h2>
           
-          {/* 🔥 НОВИЙ КОД: Блок з інформацією про ролі */}
           {activeTeam && (
               <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '20px 40px', borderRadius: '15px', textAlign: 'center', marginBottom: '20px', border: '1px dashed var(--accent-yellow)' }}>
                   <h3 style={{ color: 'var(--accent-green)', marginBottom: '10px', fontSize: '1.5rem' }}>{activeTeam.name}</h3>
@@ -421,7 +416,7 @@ if (room.gameState.status === 'countdown') {
     );
   }
 
-if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
+  if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
     const isGameOver = room.gameState.status === 'game_over';
     
     const nextTeam = room.teams[room.gameState.currentTeamIndex];
@@ -432,7 +427,6 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
     
     const canEditWords = isHost || socket.id === room.gameState.lastExplainerId;
 
-    // 🔥 НОВИЙ КОД: Математика для відображення прогресу
     const turnsPerLap = (room.teams.length || 1) * 2;
     const currentLapNum = Math.ceil(room.gameState.turnsTaken / turnsPerLap) || 1;
     const currentRoundNum = room.gameState.turnsTaken % turnsPerLap || turnsPerLap;
@@ -449,7 +443,6 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
               <h1 className="text-danger" style={{ textAlign: 'center', marginBottom: '5px' }}>Хід завершено! 🏁</h1>
             )}
             
-            {/* 🔥 НОВИЙ КОД: Візуальний блок з номером раунду та кола */}
             <p style={{ textAlign: 'center', color: 'var(--accent-yellow)', fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '15px' }}>
                 Раунд {currentRoundNum} з {turnsPerLap}, Коло {currentLapNum} / {totalLapsDisplay}
             </p>
@@ -506,7 +499,7 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
     );
   }
 
-// --- ЛОБІ ---
+  // --- ЛОБІ ---
   const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
   let currentLap = Math.floor(room.gameState.turnsTaken / (room.teams.length * 2 || 1)) + 1;
   if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) currentLap = room.settings.laps; 
@@ -514,7 +507,6 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
   const totalLapsDisplay = room.settings.laps === 'infinity' ? '∞' : room.settings.laps;
   const isGamePausedInLobby = room.gameState.pausedState === 'active_turn';
 
-  // 🔥 НОВИЙ КОД: Визначаємо, хто грає наступним прямо в лобі
   const lobbyNextTeam = room.teams[room.gameState.currentTeamIndex] || room.teams[0];
   let lobbyNextExplainer = null;
   let lobbyNextGuesser = null;
@@ -562,7 +554,6 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
               <span style={{ color: 'var(--accent-yellow)' }}>Коло {currentLap} / {totalLapsDisplay}</span>
           </div>
 
-          {/* 🔥 НОВИЙ КОД: Відмальовуємо блок "Наступні" перед кнопками */}
           {lobbyNextTeam && (
               <div className="next-team-announcement" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '15px', borderRadius: '10px', marginTop: '20px', marginBottom: '10px', textAlign: 'center', border: '1px dashed var(--accent-yellow)' }}>
                 <h3 style={{ fontSize: '1.2rem', margin: '0 0 8px 0' }}>Зараз стартують: <span className="text-success">{lobbyNextTeam.name}</span></h3>
@@ -609,25 +600,39 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
                   Обов'язковий вхід через Twitch
                 </label>
 
-                <label>Час раунду: 
-                  <select value={room.settings.timer} onChange={e => updateSettings({ timer: Number(e.target.value) })} disabled={isGamePausedInLobby} style={{ marginTop: '5px' }}>
-                    <option value="30">30 сек</option><option value="60">60 сек</option><option value="90">90 сек</option>
-                  </select>
+                {/* 🔥 НОВИЙ КОД: Текстове поле для часу замість select */}
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Час раунду (в секундах): 
+                  <input 
+                    type="number"
+                    min="10"
+                    value={room.settings.timer} 
+                    onChange={e => updateSettings({ timer: Number(e.target.value) || 60 })} 
+                    disabled={isGamePausedInLobby} 
+                    style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                  />
                 </label>
                 
-                <label>Словник: 
-                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} disabled={isGamePausedInLobby} style={{ marginTop: '5px' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Словник: 
+                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} disabled={isGamePausedInLobby} style={{ marginTop: '8px', width: '100%' }}>
                     <option value="easy">Лайт (Прості)</option><option value="medium">Медіум (Середні)</option>
                     <option value="hard">Хард (Складні)</option><option value="gamer">Геймерський</option>
                     <option value="custom">Свій словник</option>
                   </select>
                 </label>
 
-                <label>Кількість кіл (до перемоги): 
-                  <select value={room.settings.laps} onChange={e => updateSettings({ laps: e.target.value })} style={{ marginTop: '5px' }}>
-                    <option value="infinity">Безкінечно</option><option value="1">1 коло</option>
-                    <option value="3">3 кола</option><option value="5">5 кіл</option>
-                  </select>
+                {/* 🔥 НОВИЙ КОД: Текстове поле для кіл (0 = Безкінечно) */}
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Кількість кіл (0 = Безкінечно): 
+                  <input 
+                    type="number"
+                    min="0"
+                    value={room.settings.laps === 'infinity' ? 0 : room.settings.laps} 
+                    onChange={e => {
+                        const val = Number(e.target.value);
+                        updateSettings({ laps: val <= 0 ? 'infinity' : val });
+                    }} 
+                    disabled={isGamePausedInLobby} 
+                    style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                  />
                 </label>
 
                 {room.settings.dictType === 'custom' && (
@@ -671,50 +676,47 @@ if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_ov
                 
                 const isExpanded = expandedTeams[t.id];
 
-return (
-    <div key={t.id} className="team-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-      
-      {/* ГОЛОВНИЙ РЯДОК КАРТКИ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          
-          {/* Ліва частина: Назва і Бали */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
-            <span 
-              style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none' }}
-              onClick={() => setExpandedTeams(prev => ({...prev, [t.id]: !prev[t.id]}))}
-              title="Натисни, щоб переглянути історію раундів"
-            >
-              <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-              {t.name} <span className="muted" style={{ fontWeight: 'normal' }}>({teamPlayers.length}/2)</span>
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '25px' }}>
-              {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
-              <strong className="score-pill">{t.score} балів</strong>
-              {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
-            </div>
-          </div>
+                return (
+                  <div key={t.id} className="team-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+                          <span 
+                            style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none' }}
+                            onClick={() => setExpandedTeams(prev => ({...prev, [t.id]: !prev[t.id]}))}
+                            title="Натисни, щоб переглянути історію раундів"
+                          >
+                            <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                            {t.name} <span className="muted" style={{ fontWeight: 'normal' }}>({teamPlayers.length}/2)</span>
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '25px' }}>
+                            {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
+                            <strong className="score-pill">{t.score} балів</strong>
+                            {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, 1)}>+</button>}
+                          </div>
+                        </div>
 
-          {/* Права частина: Статус і Видалення */}
-          <div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {amIInThisTeam ? (
-              <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>Твоя команда</span>
-            ) : !isFull ? (
-              <button className="join-btn" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
-            ) : (
-              <span className="muted">Заповнена</span>
-            )}
-            {isHost && !isGamePausedInLobby && (
-              <button className="delete-btn" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>
-            )}
-          </div>
-
-      </div>
-      
-      {/* РОЗКРИТТЯ ІСТОРІЇ */}
-      {isExpanded && renderTeamHistory(t.id)}
-    </div>
-  );
-})}
+                        {/* 🔥 НОВИЙ КОД: Кнопка "Вийти", якщо гравець у цій команді */}
+                        <div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          {amIInThisTeam ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>Твоя команда</span>
+                              <button className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.9rem', borderRadius: '6px' }} disabled={isGamePausedInLobby} onClick={() => socket.emit('leaveTeam', { roomCode: room.id })}>Вийти</button>
+                            </div>
+                          ) : !isFull ? (
+                            <button className="join-btn" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
+                          ) : (
+                            <span className="muted">Заповнена</span>
+                          )}
+                          {isHost && !isGamePausedInLobby && (
+                            <button className="delete-btn" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>
+                          )}
+                        </div>
+                    </div>
+                    
+                    {isExpanded && renderTeamHistory(t.id)}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
