@@ -37,7 +37,22 @@ function App() {
 
   const currentPlayerId = isTwitchAuth ? `twitch_${playerName}` : basePlayerId;
 
-  useEffect(() => {
+useEffect(() => {
+    // 🔥 НОВИЙ КОД: Шукаємо код кімнати в URL або в пам'яті
+    const searchParams = new URLSearchParams(window.location.search);
+    const urlRoom = searchParams.get('room');
+    
+    let pendingRoom = localStorage.getItem('alias_pending_room');
+
+    if (urlRoom) {
+        pendingRoom = urlRoom.toUpperCase();
+        setRoomCode(pendingRoom);
+        // Очищуємо адресний рядок від ?room=... щоб було красиво
+        window.history.replaceState(null, '', window.location.pathname);
+    } else if (pendingRoom) {
+        setRoomCode(pendingRoom);
+    }
+
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -61,6 +76,11 @@ function App() {
            } else {
                setPlayerName(twitchName);
                setIsTwitchAuth(true);
+               // 🔥 АВТОВХІД: Якщо є збережена кімната - одразу залітаємо
+               if (pendingRoom) {
+                   socket.emit('joinRoom', { roomCode: pendingRoom, playerName: twitchName, playerId: basePlayerId, isTwitchAuth: true });
+                   localStorage.removeItem('alias_pending_room');
+               }
            }
         }
       }).catch(err => console.error("Помилка Twitch", err));
@@ -69,6 +89,11 @@ function App() {
        if (savedTwitchName) {
            setPlayerName(savedTwitchName);
            setIsTwitchAuth(true);
+           // 🔥 АВТОВХІД: Якщо гравець вже був залогінений - одразу залітаємо
+           if (pendingRoom) {
+               socket.emit('joinRoom', { roomCode: pendingRoom, playerName: savedTwitchName, playerId: basePlayerId, isTwitchAuth: true });
+               localStorage.removeItem('alias_pending_room');
+           }
        }
     }
 
@@ -115,7 +140,12 @@ function App() {
     };
   }, []);
 
-  const handleTwitchLogin = () => {
+const handleTwitchLogin = () => {
+    // 🔥 НОВИЙ КОД: Зберігаємо код кімнати перед редиректом
+    if (roomCode) {
+        localStorage.setItem('alias_pending_room', roomCode);
+    }
+    
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token`;
     const width = 500;
     const height = 650;
@@ -146,9 +176,11 @@ function App() {
     }
   };
 
-  const handleCopyCode = () => {
+const handleCopyCode = () => {
     if (room && room.id) {
-      navigator.clipboard.writeText(room.id);
+      // 🔥 НОВИЙ КОД: Формуємо повне посилання
+      const inviteLink = `${window.location.origin}/?room=${room.id}`;
+      navigator.clipboard.writeText(inviteLink);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
