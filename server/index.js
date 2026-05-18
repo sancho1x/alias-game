@@ -417,7 +417,7 @@ socket.on('joinTeam', ({ roomCode, teamId }) => {
       }
   };
 
-  socket.on('startTurn', ({ roomCode }) => {
+socket.on('startTurn', ({ roomCode }) => {
     const room = rooms[roomCode];
     const player = room?.players.find(p => p.id === socket.id);
     if (!room || !player || room.hostId !== player.playerId) return;
@@ -426,6 +426,14 @@ socket.on('joinTeam', ({ roomCode, teamId }) => {
     if (room.teams.length === 0) return socket.emit('error', 'Створіть команди');
     for (const team of room.teams) {
       if (room.players.filter(p => p.teamId === team.id).length < 2) return socket.emit('error', `У команді "${team.name}" треба 2 гравці`);
+    }
+
+    // 🔥 НОВИЙ КОД: Перевірка кастомного словника
+    if (room.settings.dictType === 'custom') {
+        const customWords = room.settings.customWords || [];
+        if (customWords.length < 50) {
+            return socket.emit('error', `Для свого словника потрібно мінімум 50 слів! (Зараз: ${customWords.length})`);
+        }
     }
 
     // 🔥 Зберігаємо попередній раунд в архів перед стартом нового!
