@@ -268,3 +268,30 @@ li { padding: 12px 15px; background-color: var(--bg-dark); margin-bottom: 8px; b
 .btn-delete:hover {
   background-color: rgba(255, 71, 87, 0.3);
 }
+
+/* СТИЛІ ДЛЯ ПОЛІВ НАЛАШТУВАНЬ */
+.settings-input {
+  width: 100%;
+  padding: 10px 15px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05); /* Трохи світліший фон, щоб виділялося */
+  border: 1px solid var(--border-color);
+  color: white;
+  font-size: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #a970ff; /* Фіолетова обводка при кліку (в тон Твіча) */
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 8px rgba(169, 112, 255, 0.3); /* Легке неонове світіння */
+}
+
+/* Якщо поле колись буде заблоковане, воно стане напівпрозорим */
+.settings-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: rgba(0, 0, 0, 0.2);
+}
