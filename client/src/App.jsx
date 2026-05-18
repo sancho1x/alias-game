@@ -696,21 +696,22 @@ function App() {
                         </div>
 
                         {/* 🔥 НОВИЙ КОД: Кнопка "Вийти", якщо гравець у цій команді */}
-                        <div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                          {amIInThisTeam ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>Твоя команда</span>
-                              <button className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.9rem', borderRadius: '6px' }} disabled={isGamePausedInLobby} onClick={() => socket.emit('leaveTeam', { roomCode: room.id })}>Вийти</button>
-                            </div>
-                          ) : !isFull ? (
-                            <button className="join-btn" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
-                          ) : (
-                            <span className="muted">Заповнена</span>
-                          )}
-                          {isHost && !isGamePausedInLobby && (
-                            <button className="delete-btn" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>
-                          )}
-                        </div>
+<div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+  {amIInThisTeam ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>Твоя команда</span>
+      <button className="action-btn btn-leave" disabled={isGamePausedInLobby} onClick={() => socket.emit('leaveTeam', { roomCode: room.id })}>Вийти</button>
+    </div>
+  ) : !isFull ? (
+    <button className="action-btn btn-join" disabled={isGamePausedInLobby} onClick={() => socket.emit('joinTeam', { roomCode: room.id, teamId: t.id })}>Увійти</button>
+  ) : (
+    <span className="muted">Заповнена</span>
+  )}
+  
+  {isHost && !isGamePausedInLobby && (
+    <button className="action-btn btn-delete" title="Видалити команду" onClick={() => handleDeleteTeam(t.id)}>❌</button>
+  )}
+</div>
                     </div>
                     
                     {isExpanded && renderTeamHistory(t.id)}
