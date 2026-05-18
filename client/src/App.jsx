@@ -140,6 +140,11 @@ function App() {
   const handleShuffleTeams = () => socket.emit('shuffleTeams', { roomCode: room.id });
   const handleResetGame = () => { if(window.confirm('Скинути всі рахунки, кола та історію до нуля?')) socket.emit('resetGame', { roomCode: room.id }); };
   const handleKickPlayer = (targetId) => { if(window.confirm('Точно вигнати гравця? Він не зможе повернутися.')) socket.emit('kickPlayer', { roomCode: room.id, targetPlayerId: targetId }); };
+  const handleTransferHost = (targetId) => { 
+    if(window.confirm('Точно передати права хоста цьому гравцеві? Ти втратиш можливість керувати налаштуваннями кімнати.')) {
+        socket.emit('transferHost', { roomCode: room.id, newHostId: targetId }); 
+    }
+  };
 
   const handleCopyCode = () => {
     if (room && room.id) {
@@ -229,7 +234,7 @@ function App() {
   const currentTeam = room.teams[room.gameState.currentTeamIndex];
   const myPlayerInfo = room.players.find(p => p.playerId === currentPlayerId);
 
-  const renderPlayersList = (compact = false) => (
+const renderPlayersList = (compact = false) => (
     <div className="players-list">
       <h3>Гравці {compact && 'у кімнаті'}</h3>
       <ul style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -245,14 +250,25 @@ function App() {
                 {room.teams.find(t => t.id === p.teamId) ? `(${room.teams.find(t => t.id === p.teamId).name})` : ''}
               </span>
             </div>
+            
+            {/* 🔥 НОВИЙ КОД: Блок з кнопками передачі хоста та кіку */}
             {isHost && p.playerId !== currentPlayerId && !compact && (
-                <button 
-                  onClick={() => handleKickPlayer(p.playerId)} 
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
-                  title="Вигнати гравця"
-                >
-                  💀
-                </button>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <button 
+                    onClick={() => handleTransferHost(p.playerId)} 
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+                    title="Передати права хоста"
+                  >
+                    👑
+                  </button>
+                  <button 
+                    onClick={() => handleKickPlayer(p.playerId)} 
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+                    title="Вигнати гравця"
+                  >
+                    💀
+                  </button>
+                </div>
             )}
           </li>
         ))}
@@ -584,8 +600,7 @@ function App() {
               </button>
             )
           )}
-
-          <div className="settings-panel">
+<div className="settings-panel">
             <h3>Налаштування {isHost ? '⚙️' : '(Тільки хост)'}</h3>
             {isHost ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
@@ -600,27 +615,25 @@ function App() {
                   Обов'язковий вхід через Twitch
                 </label>
 
-                {/* 🔥 НОВИЙ КОД: Текстове поле для часу замість select */}
+                {/* ПРИБРАНО disabled={isGamePausedInLobby} ДЛЯ ВСІХ ПОЛІВ НИЖЧЕ */}
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Час раунду (в секундах): 
                   <input 
                     type="number"
                     min="10"
                     value={room.settings.timer} 
                     onChange={e => updateSettings({ timer: Number(e.target.value) || 60 })} 
-                    disabled={isGamePausedInLobby} 
                     style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
                   />
                 </label>
                 
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Словник: 
-                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} disabled={isGamePausedInLobby} style={{ marginTop: '8px', width: '100%' }}>
+                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} style={{ marginTop: '8px', width: '100%' }}>
                     <option value="easy">Лайт (Прості)</option><option value="medium">Медіум (Середні)</option>
                     <option value="hard">Хард (Складні)</option><option value="gamer">Геймерський</option>
                     <option value="custom">Свій словник</option>
                   </select>
                 </label>
 
-                {/* 🔥 НОВИЙ КОД: Текстове поле для кіл (0 = Безкінечно) */}
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Кількість кіл (0 = Безкінечно): 
                   <input 
                     type="number"
@@ -630,7 +643,6 @@ function App() {
                         const val = Number(e.target.value);
                         updateSettings({ laps: val <= 0 ? 'infinity' : val });
                     }} 
-                    disabled={isGamePausedInLobby} 
                     style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
                   />
                 </label>
@@ -640,7 +652,6 @@ function App() {
                     placeholder="Введіть слова через пробіл або кому..." 
                     defaultValue={room.settings.customWords?.join(', ')} 
                     onBlur={e => updateSettings({ customWords: e.target.value.split(/[\s,]+/).filter(w => w) })}
-                    disabled={isGamePausedInLobby}
                     style={{ minHeight: '100px', marginTop: '5px' }}
                   />
                 )}
