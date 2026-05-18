@@ -238,7 +238,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('joinTeam', ({ roomCode, teamId }) => {
+socket.on('joinTeam', ({ roomCode, teamId }) => {
     const room = rooms[roomCode];
     if (room) {
       touchRoom(roomCode);
@@ -247,6 +247,19 @@ io.on('connection', (socket) => {
       if (player && player.teamId !== teamId && playersInTeam.length >= 2) return socket.emit('error', 'Команда вже заповнена');
       if (player) player.teamId = teamId;
       broadcastRoomUpdate(roomCode);
+    }
+  });
+
+  // 🔥 НОВИЙ КОД: Обробка виходу з команди
+  socket.on('leaveTeam', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (room) {
+      touchRoom(roomCode);
+      const player = room.players.find(p => p.id === socket.id);
+      if (player) {
+        player.teamId = null; // Обнуляємо прив'язку гравця до команди
+        broadcastRoomUpdate(roomCode);
+      }
     }
   });
 
