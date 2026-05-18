@@ -675,6 +675,49 @@ const renderPlayersList = (compact = false) => (
                     onBlur={e => updateSettings({ customWords: e.target.value.split(/[\s,]+/).filter(w => w) })}
                     style={{ minHeight: '100px', marginTop: '5px' }}
                   />
+                )}<label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Час раунду (в секундах): 
+                  <input 
+                    type="number"
+                    min="10"
+                    className="settings-input"
+                    value={room.settings.timer} 
+                    onChange={e => updateSettings({ timer: Number(e.target.value) || 60 })} 
+                  />
+                </label>
+                
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Словник: 
+                  <select 
+                    className="settings-input"
+                    value={room.settings.dictType} 
+                    onChange={e => updateSettings({ dictType: e.target.value })}
+                  >
+                    <option value="easy">Лайт (Прості)</option><option value="medium">Медіум (Середні)</option>
+                    <option value="hard">Хард (Складні)</option><option value="gamer">Геймерський</option>
+                    <option value="custom">Свій словник</option>
+                  </select>
+                </label>
+
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Кількість кіл (0 = Безкінечно): 
+                  <input 
+                    type="number"
+                    min="0"
+                    className="settings-input"
+                    value={room.settings.laps === 'infinity' ? 0 : room.settings.laps} 
+                    onChange={e => {
+                        const val = Number(e.target.value);
+                        updateSettings({ laps: val <= 0 ? 'infinity' : val });
+                    }} 
+                  />
+                </label>
+
+                {room.settings.dictType === 'custom' && (
+                  <textarea 
+                    className="settings-input"
+                    placeholder="Введіть слова через пробіл або кому..." 
+                    defaultValue={room.settings.customWords?.join(', ')} 
+                    onBlur={e => updateSettings({ customWords: e.target.value.split(/[\s,]+/).filter(w => w) })}
+                    style={{ minHeight: '100px', resize: 'vertical' }}
+                  />
                 )}
               </div>
             ) : (
