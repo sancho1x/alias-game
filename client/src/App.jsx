@@ -154,7 +154,7 @@ function App() {
     }
   };
 
-  const handleStartGameLobby = () => {
+const handleStartGameLobby = () => {
     const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
     if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
         if (window.confirm('Гру вже завершено! Бажаєте скинути рахунки і почати нове коло?')) {
@@ -170,6 +170,17 @@ function App() {
         }
         return;
     }
+
+    // 🔥 НОВИЙ КОД: Перевірка словника в лобі
+    if (room.settings.dictType === 'custom') {
+        const wordCount = room.settings.customWords?.length || 0;
+        if (wordCount < 50) {
+            setAppError(`Для свого словника потрібно мінімум 50 слів! (Зараз: ${wordCount})`);
+            setTimeout(() => setAppError(''), 4000);
+            return;
+        }
+    }
+
     if (room.players.some(p => p.teamId !== null && !p.online)) {
         setAppError('Один з гравців у командах не в мережі! Дочекайтесь його або замініть.');
         setTimeout(() => setAppError(''), 4000);
@@ -179,6 +190,16 @@ function App() {
   };
 
   const handleStartTurnFromScoreboard = () => {
+      // 🔥 НОВИЙ КОД: Перевірка словника на екрані результатів
+      if (room.settings.dictType === 'custom') {
+          const wordCount = room.settings.customWords?.length || 0;
+          if (wordCount < 50) {
+              setAppError(`Для свого словника потрібно мінімум 50 слів! (Зараз: ${wordCount})`);
+              setTimeout(() => setAppError(''), 4000);
+              return;
+          }
+      }
+
       if (room.players.some(p => p.teamId !== null && !p.online)) {
           setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
           setTimeout(() => setAppError(''), 4000);
