@@ -36,26 +36,34 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = {};
+// 🔥 РОЗДІЛЯЄМО ТАЙМАУТИ
+const RAM_TIMEOUT = 2 * 60 * 60 * 1000;      // 2 години (для швидкої оперативної пам'яті)
+const DB_TIMEOUT = 14 * 24 * 60 * 60 * 1000; // 14 днів (для бази даних)
 const MAX_ROOMS = 100; 
-const ROOM_TIMEOUT = 2 * 60 * 60 * 1000; 
 
+// Завантаження кімнат при старті сервера
 RoomModel.find({}).then(dbRooms => {
+  const now = Date.now();
   dbRooms.forEach(r => {
-    if (Date.now() - r.lastActive < ROOM_TIMEOUT) {
-        const room = r.toObject();
-        room.timerInterval = null;
-        room.hostTimeoutObj = null;
-        if (!room.gameState.fullHistory) room.gameState.fullHistory = []; // Підтримка старих кімнат
-        if (room.gameState.status === 'playing' || room.gameState.status === 'countdown') {
-            room.gameState.status = 'paused';
-            room.gameState.pausedState = 'active_turn';
+    if (now - r.lastActive < DB_TIMEOUT) {
+        // Якщо кімната ще свіжа (до 2 годин), вантажимо її в оперативку для гри
+        if (now - r.lastActive < RAM_TIMEOUT) {
+            const room = r.toObject();
+            room.timerInterval = null;
+            room.hostTimeoutObj = null;
+            if (!room.gameState.fullHistory) room.gameState.fullHistory = []; 
+            if (room.gameState.status === 'playing' || room.gameState.status === 'countdown') {
+                room.gameState.status = 'paused';
+                room.gameState.pausedState = 'active_turn';
+            }
+            rooms[r.id] = room;
         }
-        rooms[r.id] = room;
     } else {
+        // Якщо кімнаті більше 2 тижнів - видаляємо назавжди
         RoomModel.deleteOne({ id: r.id }).catch(()=>({}));
     }
   });
-  console.log(`📦 Відновлено кімнат з бази: ${Object.keys(rooms).length}`);
+  console.log(`📦 Відновлено активних кімнат: ${Object.keys(rooms).length}`);
 });
 
 const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -78,13 +86,20 @@ const broadcastRoomUpdate = (roomCode) => {
 
 const touchRoom = (roomCode) => { if (rooms[roomCode]) rooms[roomCode].lastActive = Date.now(); };
 
+// Періодичне очищення
 setInterval(() => {
   const now = Date.now();
+  
+  // 1. Чистимо оперативку (якщо неактивні > 2 годин)
   for (const code in rooms) {
-    if (now - rooms[code].lastActive > ROOM_TIMEOUT) {
-      delete rooms[code];
-      if (MONGO_URI) RoomModel.deleteOne({ id: code }).catch(()=>({})); 
+    if (now - rooms[code].lastActive > RAM_TIMEOUT) {
+      delete rooms[code]; 
     }
+  }
+
+  // 2. Чистимо БД масово (якщо неактивні > 14 днів)
+  if (MONGO_URI) {
+      RoomModel.deleteMany({ lastActive: { $lt: now - DB_TIMEOUT } }).catch(()=>({}));
   }
 }, 30 * 60 * 1000);
 
