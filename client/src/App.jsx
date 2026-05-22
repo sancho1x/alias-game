@@ -715,12 +715,19 @@ const renderPlayersList = (compact = false) => (
                   />
                 </label>
 
-                {room.settings.dictType === 'custom' && (
+{room.settings.dictType === 'custom' && (
                   <textarea 
-                    placeholder="Введіть слова через пробіл або кому..." 
-                    defaultValue={room.settings.customWords?.join(', ')} 
-                    onBlur={e => updateSettings({ customWords: e.target.value.split(/[\s,]+/).filter(w => w) })}
-                    style={{ minHeight: '100px', marginTop: '5px' }}
+                    className="settings-input"
+                    placeholder="Введіть слова чи фрази. Кожна фраза з нового рядка або через крапку з комою (;)..." 
+                    defaultValue={room.settings.customWords?.join('\n')} 
+                    onBlur={e => {
+                        const parsedWords = e.target.value
+                            .split(/[\n\r;]+/) // Розбиваємо по переносу рядка або ;
+                            .map(w => w.trim()) // Відрізаємо зайві пробіли по краях
+                            .filter(w => w);    // Видаляємо порожні рядки
+                        updateSettings({ customWords: parsedWords });
+                    }}
+                    style={{ minHeight: '150px', resize: 'vertical' }}
                   />
                 )}
               </div>
