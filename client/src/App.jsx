@@ -251,13 +251,28 @@ const handleStartGameLobby = () => {
     </div>
   ) : null;
 
-  if (!room) {
+if (!room) {
     return (
       <>
         <ErrorToast />
         <div className="app-wrapper">
           <div className="container">
             <h1 className="logo-title">ЕЛІАС</h1>
+
+            {/* 🔥 НОВИЙ КОД: Попередження про сплячий сервер */}
+            <div style={{
+                backgroundColor: 'rgba(255, 195, 18, 0.05)',
+                border: '1px dashed rgba(255, 195, 18, 0.3)',
+                color: 'var(--text-muted)',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                textAlign: 'center',
+                marginBottom: '20px',
+                lineHeight: '1.4'
+            }}>
+              ⏳ <strong>Сервер може спати:</strong> Якщо гра довго не запускалася, їй треба близько 30-50 секунд, щоб "прокинутися". Якщо кнопки не реагують одразу — просто трошки почекайте!
+            </div>
             
             {isTwitchAuth ? (
               <div style={{ textAlign: 'center', backgroundColor: '#3d4554', padding: '15px', borderRadius: '12px' }}>
