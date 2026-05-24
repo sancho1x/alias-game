@@ -285,14 +285,30 @@ socket.on('joinRoom', async ({ roomCode, playerName, playerId, isTwitchAuth, twi
             room.gameState.autoPausedBySystem = true;
         }
 
-        if (room.hostId === player.playerId) {
+if (room.hostId === player.playerId) {
+            
+            // 🔥 ФІКС БАГА: Вбиваємо старий таймер, щоб вони не плодилися
+            if (room.hostTimeoutObj) {
+                clearTimeout(room.hostTimeoutObj);
+            }
+
+            // Ставимо новий таймер на 3 хвилини (3 * 60 * 1000)
             room.hostTimeoutObj = setTimeout(() => {
-                const nextHost = room.players.find(p => p.playerId !== player.playerId && p.online);
-                room.hostId = nextHost ? nextHost.playerId : null;
-                room.hostTimeoutObj = null;
-                broadcastRoomUpdate(code);
-            }, 60000);
-        }
+                
+                // Перевіряємо, чи цей відключений гравець ДОСІ вважається хостом 
+                // (можливо, корону вже передали вручну)
+                if (room.hostId === player.playerId) {
+                    
+                    // Шукаємо першого онлайн-гравця
+                    const newHost = room.players.find(p => p.online);
+                    if (newHost) {
+                        room.hostId = newHost.playerId;
+                        room.hostTimeoutObj = null; // Очищаємо відпрацьований таймер
+                        broadcastRoomUpdate(room.id);
+                    }
+                }
+            }, 3 * 60 * 1000);
+          }
         broadcastRoomUpdate(code);
         break;
       }
