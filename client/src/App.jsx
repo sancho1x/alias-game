@@ -174,10 +174,10 @@ const handleCreateRoom = () => {
     socket.emit('createRoom', { playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
   };
 
-  const handleJoinRoom = () => {
-    if (joinCode.length !== 4) return;
-    const token = localStorage.getItem('alias_twitch_token'); // 🔥 Беремо токен
-    socket.emit('joinRoom', { roomCode: joinCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
+const handleJoinRoom = () => {
+    if (roomCode.length !== 4) return;
+    const token = localStorage.getItem('alias_twitch_token'); 
+    socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
   };
   const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
   
