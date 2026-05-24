@@ -301,54 +301,59 @@ socket.on('joinRoom', async ({ roomCode, playerName, playerId, isTwitchAuth, twi
     }
   });
 
-  socket.on('kickPlayer', ({ roomCode, targetPlayerId }) => {
+socket.on('kickPlayer', ({ roomCode, targetPlayerId }) => {
+    // 🔥 БЛОК-ОХОРОНЕЦЬ
     const room = rooms[roomCode];
-    const host = room?.players.find(p => p.id === socket.id);
-    if (room && host && room.hostId === host.playerId) {
-        const targetPlayer = room.players.find(p => p.playerId === targetPlayerId);
-        if (targetPlayer && targetPlayer.playerId !== room.hostId) {
-            room.kickedPlayers.push(targetPlayer.playerId);
-            room.players = room.players.filter(p => p.playerId !== targetPlayer.playerId);
-            io.to(targetPlayer.id).emit('kicked');
-            const targetSocket = io.sockets.sockets.get(targetPlayer.id);
-            if (targetSocket) targetSocket.leave(roomCode);
-            broadcastRoomUpdate(roomCode);
-        }
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || room.hostId !== player.playerId) return socket.emit('error', 'Ця дія доступна лише хосту!');
+    touchRoom(roomCode);
+
+    const targetPlayer = room.players.find(p => p.playerId === targetPlayerId);
+    if (targetPlayer && targetPlayer.playerId !== room.hostId) {
+        room.kickedPlayers.push(targetPlayer.playerId);
+        room.players = room.players.filter(p => p.playerId !== targetPlayer.playerId);
+        io.to(targetPlayer.id).emit('kicked');
+        const targetSocket = io.sockets.sockets.get(targetPlayer.id);
+        if (targetSocket) targetSocket.leave(roomCode);
+        broadcastRoomUpdate(roomCode);
     }
   });
- // 🔥 НОВИЙ КОД: Передача прав хоста
-  socket.on('transferHost', ({ roomCode, newHostId }) => {
-    const room = rooms[roomCode];
-    const host = room?.players.find(p => p.id === socket.id);
-    
-    // Перевіряємо, чи кімната існує і чи запит робить поточний хост
-    if (room && host && room.hostId === host.playerId) {
-        const targetPlayer = room.players.find(p => p.playerId === newHostId);
-        
-        // Якщо новий гравець знайдений, передаємо корону
-        if (targetPlayer) {
-            room.hostId = targetPlayer.playerId;
-            
-            // На всякий випадок чистимо таймер відключення старого хоста, якщо він був
-            if (room.hostTimeoutObj) {
-                clearTimeout(room.hostTimeoutObj);
-                room.hostTimeoutObj = null;
-            }
-            
-            broadcastRoomUpdate(roomCode);
-        }
-    }
-  });   
 
-  socket.on('updateSettings', ({ roomCode, settings }) => {
+
+  socket.on('transferHost', ({ roomCode, newHostId }) => {
+    // 🔥 БЛОК-ОХОРОНЕЦЬ
     const room = rooms[roomCode];
-    const player = room?.players.find(p => p.id === socket.id);
-    if (room && player && room.hostId === player.playerId) {
-      touchRoom(roomCode);
-      room.settings = { ...room.settings, ...settings };
-      room.gameState.usedWords = [];
-      broadcastRoomUpdate(roomCode);
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || room.hostId !== player.playerId) return socket.emit('error', 'Ця дія доступна лише хосту!');
+    touchRoom(roomCode);
+
+    const targetPlayer = room.players.find(p => p.playerId === newHostId);
+    if (targetPlayer) {
+        room.hostId = targetPlayer.playerId;
+        
+        // На всякий випадок чистимо таймер відключення старого хоста, якщо він був
+        if (room.hostTimeoutObj) {
+            clearTimeout(room.hostTimeoutObj);
+            room.hostTimeoutObj = null;
+        }
+        
+        broadcastRoomUpdate(roomCode);
     }
+  });
+
+socket.on('updateSettings', ({ roomCode, settings }) => {
+    // 🔥 БЛОК-ОХОРОНЕЦЬ
+    const room = rooms[roomCode];
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || room.hostId !== player.playerId) return socket.emit('error', 'Ця дія доступна лише хосту!');
+    touchRoom(roomCode);
+
+    room.settings = { ...room.settings, ...settings };
+    room.gameState.usedWords = [];
+    broadcastRoomUpdate(roomCode);
   });
 
   socket.on('createTeam', ({ roomCode, teamName }) => {
@@ -387,15 +392,17 @@ socket.on('joinTeam', ({ roomCode, teamId }) => {
     }
   });
 
-  socket.on('deleteTeam', ({ roomCode, teamId }) => {
+socket.on('deleteTeam', ({ roomCode, teamId }) => {
+    // 🔥 БЛОК-ОХОРОНЕЦЬ
     const room = rooms[roomCode];
-    const player = room?.players.find(p => p.id === socket.id);
-    if (room && player && room.hostId === player.playerId) {
-      touchRoom(roomCode);
-      room.teams = room.teams.filter(t => t.id !== teamId);
-      room.players.forEach(p => { if (p.teamId === teamId) p.teamId = null; });
-      broadcastRoomUpdate(roomCode);
-    }
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || room.hostId !== player.playerId) return socket.emit('error', 'Ця дія доступна лише хосту!');
+    touchRoom(roomCode);
+
+    room.teams = room.teams.filter(t => t.id !== teamId);
+    room.players.forEach(p => { if (p.teamId === teamId) p.teamId = null; });
+    broadcastRoomUpdate(roomCode);
   });
 
   socket.on('shuffleTeams', ({ roomCode }) => {
@@ -430,21 +437,23 @@ socket.on('joinTeam', ({ roomCode, teamId }) => {
     }
   });
 
-  socket.on('resetGame', ({ roomCode }) => {
+socket.on('resetGame', ({ roomCode }) => {
+    // 🔥 БЛОК-ОХОРОНЕЦЬ
     const room = rooms[roomCode];
-    const player = room?.players.find(p => p.id === socket.id);
-    if (room && player && room.hostId === player.playerId) {
-        touchRoom(roomCode);
-        room.gameState.turnsTaken = 0;
-        room.gameState.currentTeamIndex = 0;
-        room.gameState.explainerIndices = {};
-        room.teams.forEach(t => t.score = 0);
-        room.gameState.usedWords = [];
-        room.gameState.roundHistory = [];
-        room.gameState.fullHistory = []; // Очищуємо архів при скиданні
-        room.gameState.pausedState = null;
-        broadcastRoomUpdate(roomCode);
-    }
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || room.hostId !== player.playerId) return socket.emit('error', 'Ця дія доступна лише хосту!');
+    touchRoom(roomCode);
+
+    room.gameState.turnsTaken = 0;
+    room.gameState.currentTeamIndex = 0;
+    room.gameState.explainerIndices = {};
+    room.teams.forEach(t => t.score = 0);
+    room.gameState.usedWords = [];
+    room.gameState.roundHistory = [];
+    room.gameState.fullHistory = []; // Очищуємо архів при скиданні
+    room.gameState.pausedState = null;
+    broadcastRoomUpdate(roomCode);
   });
 
   const getRandomWord = (room) => {
