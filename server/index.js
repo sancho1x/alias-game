@@ -157,8 +157,15 @@ const dictionaries = {
 
 io.on('connection', (socket) => {
   
-  socket.on('createRoom', ({ playerName, playerId, isTwitchAuth }) => {
+socket.on('createRoom', async ({ playerName, playerId, isTwitchAuth, twitchToken }) => {
     if (Object.keys(rooms).length >= MAX_ROOMS) return socket.emit('error', 'Сервери перевантажені!');
+    
+    // 🔥 Нова перевірка токена
+    if (isTwitchAuth) {
+        const isValid = await verifyTwitchIdentity(twitchToken, playerName);
+        if (!isValid) return socket.emit('error', 'Помилка авторизації Twitch. Вийдіть і зайдіть знову.');
+    }
+
     const roomCode = generateRoomCode();
     const effectivePlayerId = isTwitchAuth ? `twitch_${playerName}` : playerId;
 
@@ -183,16 +190,23 @@ io.on('connection', (socket) => {
     if (MONGO_URI) RoomModel.findOneAndUpdate({ id: roomCode }, getSafeRoom(rooms[roomCode]), { upsert: true }).catch(()=>{});
   });
 
-  socket.on('joinRoom', ({ roomCode, playerName, playerId, isTwitchAuth }) => {
+socket.on('joinRoom', async ({ roomCode, playerName, playerId, isTwitchAuth, twitchToken }) => {
     const room = rooms[roomCode];
     if (!room) return socket.emit('error', 'Кімнату не знайдено.');
     touchRoom(roomCode);
+    
+    // 🔥 Нова перевірка токена
+    if (isTwitchAuth) {
+        const isValid = await verifyTwitchIdentity(twitchToken, playerName);
+        if (!isValid) return socket.emit('error', 'Помилка авторизації Twitch. Вийдіть і зайдіть знову.');
+    }
     
     const effectivePlayerId = isTwitchAuth ? `twitch_${playerName}` : playerId;
 
     if (room.kickedPlayers.includes(effectivePlayerId)) return socket.emit('error', 'Вас було виключено з цієї кімнати.');
     if (room.settings.requireTwitchAuth && !isTwitchAuth) return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch!');
-const existing = room.players.find(p => p.playerId === effectivePlayerId);
+    
+    const existing = room.players.find(p => p.playerId === effectivePlayerId);
 
     if (existing) {
       if (existing.id && existing.id !== socket.id) {
@@ -205,6 +219,7 @@ const existing = room.players.find(p => p.playerId === effectivePlayerId);
               oldSocket.leave(roomCode);
           }
       }
+    }
 
       existing.id = socket.id;
       existing.name = effectivePlayerName;
