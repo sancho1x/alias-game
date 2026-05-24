@@ -91,17 +91,6 @@ const getSafeRoom = (room) => {
   return safeRoom;
 };
 
-  const getCurrentExplainerId = (room) => {
-  if (!room || room.teams.length === 0 || room.gameState.currentTeamIndex >= room.teams.length) return null;
-  
-  const activeTeam = room.teams[room.gameState.currentTeamIndex];
-  const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
-  if (teamPlayers.length === 0) return null;
-  
-  const explainerIndex = (room.gameState.explainerIndices[activeTeam.id] || 0) % teamPlayers.length;
-  return teamPlayers[explainerIndex]?.playerId;
-};
-
 const broadcastRoomUpdate = (roomCode) => {
   const room = rooms[roomCode];
   if (!room) return;
