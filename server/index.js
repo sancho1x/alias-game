@@ -91,13 +91,6 @@ const getSafeRoom = (room) => {
   return safeRoom;
 };
 
-const broadcastRoomUpdate = (roomCode) => {
-  const room = rooms[roomCode];
-  if (!room) return;
-
-  // Отримуємо безпечну версію без системних таймерів
-  const safeRoom = getSafeRoom(room);
-
   const getCurrentExplainerId = (room) => {
   if (!room || room.teams.length === 0 || room.gameState.currentTeamIndex >= room.teams.length) return null;
   
@@ -108,6 +101,13 @@ const broadcastRoomUpdate = (roomCode) => {
   const explainerIndex = (room.gameState.explainerIndices[activeTeam.id] || 0) % teamPlayers.length;
   return teamPlayers[explainerIndex]?.playerId;
 };
+
+const broadcastRoomUpdate = (roomCode) => {
+  const room = rooms[roomCode];
+  if (!room) return;
+
+  // Отримуємо безпечну версію без системних таймерів
+  const safeRoom = getSafeRoom(room);
   
   // 1. Зберігаємо в базу даних повну версію (там слово має бути для історії)
   if (MONGO_URI) {
@@ -223,7 +223,7 @@ socket.on('joinRoom', async ({ roomCode, playerName, playerId, isTwitchAuth, twi
     if (!room) return socket.emit('error', 'Кімнату не знайдено.');
     touchRoom(roomCode);
     
-    // 🔥 Нова перевірка токена
+    // Перевірка токена
     if (isTwitchAuth) {
         const isValid = await verifyTwitchIdentity(twitchToken, playerName);
         if (!isValid) return socket.emit('error', 'Помилка авторизації Twitch. Вийдіть і зайдіть знову.');
@@ -236,21 +236,19 @@ socket.on('joinRoom', async ({ roomCode, playerName, playerId, isTwitchAuth, twi
     
     const existing = room.players.find(p => p.playerId === effectivePlayerId);
 
+    // 🔥 ВИПРАВЛЕНИЙ БЛОК: Дужки тепер стоять правильно
     if (existing) {
       if (existing.id && existing.id !== socket.id) {
-          // Відправляємо старому сокету сигнал на відключення
           io.to(existing.id).emit('kicked_duplicate');
-          
-          // Примусово викидаємо старий сокет з кімнати на рівні сервера
           const oldSocket = io.sockets.sockets.get(existing.id);
           if (oldSocket) {
               oldSocket.leave(roomCode);
           }
       }
-    }
 
+      const oldId = existing.id; // Зберігаємо старий ID
       existing.id = socket.id;
-      existing.name = effectivePlayerName;
+      existing.name = playerName; // Виправив фантомну змінну
       existing.online = true;
       existing.isTwitch = isTwitchAuth || existing.isTwitch;
       
