@@ -97,6 +97,17 @@ const broadcastRoomUpdate = (roomCode) => {
 
   // Отримуємо безпечну версію без системних таймерів
   const safeRoom = getSafeRoom(room);
+
+  const getCurrentExplainerId = (room) => {
+  if (!room || room.teams.length === 0 || room.gameState.currentTeamIndex >= room.teams.length) return null;
+  
+  const activeTeam = room.teams[room.gameState.currentTeamIndex];
+  const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
+  if (teamPlayers.length === 0) return null;
+  
+  const explainerIndex = (room.gameState.explainerIndices[activeTeam.id] || 0) % teamPlayers.length;
+  return teamPlayers[explainerIndex]?.playerId;
+};
   
   // 1. Зберігаємо в базу даних повну версію (там слово має бути для історії)
   if (MONGO_URI) {
@@ -350,6 +361,18 @@ socket.on('updateSettings', ({ roomCode, settings }) => {
     const player = room.players.find(p => p.id === socket.id);
     if (!player || room.hostId !== player.playerId) return socket.emit('error', 'Ця дія доступна лише хосту!');
     touchRoom(roomCode);
+
+    // 🔥 ЗАХИСТ ВІД СПАМУ ТЕКСТОМ (Payload Bloat)
+    if (settings && settings.customWords && Array.isArray(settings.customWords)) {
+        // 1. Обмежуємо максимальну кількість слів (наприклад, 2000)
+        if (settings.customWords.length > 2000) {
+            settings.customWords = settings.customWords.slice(0, 2000);
+        }
+        // 2. Обмежуємо довжину кожної фрази (наприклад, макс 50 символів)
+        settings.customWords = settings.customWords.map(word => 
+            typeof word === 'string' ? word.substring(0, 50) : ''
+        ).filter(w => w.trim() !== ''); // Викидаємо порожні
+    }
 
     room.settings = { ...room.settings, ...settings };
     room.gameState.usedWords = [];
