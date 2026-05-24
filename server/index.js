@@ -147,13 +147,22 @@ io.on('connection', (socket) => {
 
     if (room.kickedPlayers.includes(effectivePlayerId)) return socket.emit('error', 'Вас було виключено з цієї кімнати.');
     if (room.settings.requireTwitchAuth && !isTwitchAuth) return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch!');
-
-    const existing = room.players.find(p => p.playerId === effectivePlayerId);
+const existing = room.players.find(p => p.playerId === effectivePlayerId);
 
     if (existing) {
-      const oldId = existing.id;
+      if (existing.id && existing.id !== socket.id) {
+          // Відправляємо старому сокету сигнал на відключення
+          io.to(existing.id).emit('kicked_duplicate');
+          
+          // Примусово викидаємо старий сокет з кімнати на рівні сервера
+          const oldSocket = io.sockets.sockets.get(existing.id);
+          if (oldSocket) {
+              oldSocket.leave(roomCode);
+          }
+      }
+
       existing.id = socket.id;
-      existing.name = playerName;
+      existing.name = effectivePlayerName;
       existing.online = true;
       existing.isTwitch = isTwitchAuth || existing.isTwitch;
       
