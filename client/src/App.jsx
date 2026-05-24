@@ -314,7 +314,30 @@ if (!room) {
       </>
     );
   }
+  
+// 🔥 НОВИЙ КОД: Звук відліку тільки для активних гравців
+  useEffect(() => {
+    // Спрацьовує тільки коли статус змінюється на countdown і таймер на 3
+    if (room?.gameState?.status === 'countdown' && localTimer === 3) {
+      
+      // Шукаємо команду і гравців, чий зараз хід
+      const activeTeam = room.teams.find(t => t.id === room.gameState.currentTeamId);
+      const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
+      const activeExplainer = room.players.find(p => p.id === room.gameState.currentExplainerId);
+      const expIdx = teamPlayers.findIndex(p => p.id === activeExplainer?.id);
+      const activeGuesser = teamPlayers[(expIdx + 1) % (teamPlayers.length || 1)];
 
+      // Перевіряємо, чи Я є пояснювачем АБО відгадувачем
+      const amIActive = currentPlayerId === activeExplainer?.playerId || currentPlayerId === activeGuesser?.playerId;
+
+      if (amIActive) {
+        const audio = new Audio('/countdown.mp3'); // Назва твого аудіофайлу
+        audio.volume = 0.6; // Гучність від 0.0 до 1.0 (щоб не оглушити)
+        audio.play().catch(err => console.log('Автоплей заблоковано браузером:', err));
+      }
+    }
+  }, [room?.gameState?.status, localTimer, currentPlayerId, room]);
+  
   const isHost = room.hostId === currentPlayerId;
   const currentTeam = room.teams[room.gameState.currentTeamIndex];
   const myPlayerInfo = room.players.find(p => p.playerId === currentPlayerId);
