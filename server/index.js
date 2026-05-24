@@ -75,13 +75,42 @@ const getSafeRoom = (room) => {
 
 const broadcastRoomUpdate = (roomCode) => {
   const room = rooms[roomCode];
-  if (room) {
-    const safeRoom = getSafeRoom(room);
-    io.to(roomCode).emit('roomUpdated', safeRoom);
-    if (MONGO_URI) {
-        RoomModel.findOneAndUpdate({ id: room.id }, safeRoom, { upsert: true }).catch(err => console.log('Помилка БД:', err));
-    }
+  if (!room) return;
+
+  // Отримуємо безпечну версію без системних таймерів
+  const safeRoom = getSafeRoom(room);
+  
+  // 1. Зберігаємо в базу даних повну версію (там слово має бути для історії)
+  if (MONGO_URI) {
+      RoomModel.findOneAndUpdate({ id: room.id }, safeRoom, { upsert: true }).catch(err => console.log('Помилка БД:', err));
   }
+
+  // 2. Визначаємо, хто саме зараз пояснює слова
+  let currentExplainerId = null;
+  if (room.teams.length > 0 && room.gameState.currentTeamIndex < room.teams.length) {
+      const activeTeam = room.teams[room.gameState.currentTeamIndex];
+      const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
+      if (teamPlayers.length > 0) {
+          const explainerIndex = (room.gameState.explainerIndices[activeTeam.id] || 0) % teamPlayers.length;
+          currentExplainerId = teamPlayers[explainerIndex]?.playerId;
+      }
+  }
+
+  // 3. Відправляємо кожному гравцю ПЕРСОНАЛЬНУ копію даних
+  room.players.forEach(player => {
+      if (player.online && player.id) {
+          // Робимо глибоку копію об'єкта, щоб зміна для одного не вплинула на інших
+          const personalizedRoom = JSON.parse(JSON.stringify(safeRoom)); 
+
+          // Якщо гра йде/на паузі, і цей гравець НЕ пояснюючий — ховаємо слово!
+          if ((room.gameState.status === 'playing' || room.gameState.status === 'paused') && player.playerId !== currentExplainerId) {
+              personalizedRoom.gameState.currentWord = "🔒 ПРИХОВАНО";
+          }
+
+          // Відправляємо дані точково на ID конкретного сокета (конкретній людині)
+          io.to(player.id).emit('roomUpdated', personalizedRoom);
+      }
+  });
 };
 
 const touchRoom = (roomCode) => { if (rooms[roomCode]) rooms[roomCode].lastActive = Date.now(); };
