@@ -160,9 +160,18 @@ const dictionaries = {
 io.on('connection', (socket) => {
   
 socket.on('createRoom', async ({ playerName, playerId, isTwitchAuth, twitchToken }) => {
+    // Отримуємо IP клієнта (враховуємо проксі, якщо сервер лежить на Render/Railway тощо)
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+
+    // 🔥 НОВИЙ КОД: Перевірка кулдауну для цього IP
+    const lastCreationTime = roomCreationLimits.get(clientIp);
+    if (lastCreationTime && (Date.now() - lastCreationTime < ROOM_CREATION_COOLDOWN)) {
+        const timeLeft = Math.ceil((ROOM_CREATION_COOLDOWN - (Date.now() - lastCreationTime)) / 1000);
+        return socket.emit('error', `Занадто багато запитів. Зачекайте ${timeLeft} сек.`);
+    }
+
     if (Object.keys(rooms).length >= MAX_ROOMS) return socket.emit('error', 'Сервери перевантажені!');
     
-    // 🔥 Нова перевірка токена
     if (isTwitchAuth) {
         const isValid = await verifyTwitchIdentity(twitchToken, playerName);
         if (!isValid) return socket.emit('error', 'Помилка авторизації Twitch. Вийдіть і зайдіть знову.');
@@ -170,6 +179,12 @@ socket.on('createRoom', async ({ playerName, playerId, isTwitchAuth, twitchToken
 
     const roomCode = generateRoomCode();
     const effectivePlayerId = isTwitchAuth ? `twitch_${playerName}` : playerId;
+
+    // 🔥 НОВИЙ КОД: Записуємо IP в "журнал" і ставимо таймер на його очищення
+    roomCreationLimits.set(clientIp, Date.now());
+    setTimeout(() => {
+        roomCreationLimits.delete(clientIp);
+    }, ROOM_CREATION_COOLDOWN);
 
     rooms[roomCode] = {
       id: roomCode,
