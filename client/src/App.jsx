@@ -122,11 +122,18 @@ useEffect(() => {
         setTimeout(() => setAppError(''), 4000);
     });
 
-    socket.on('kicked', () => {
+socket.on('kicked', () => {
         setRoom(null);
         setRoomCode('');
         setAppError('Вас вигнали з кімнати!');
         setTimeout(() => setAppError(''), 5000);
+    });
+
+    socket.on('kicked_duplicate', () => {
+        setRoom(null);
+        setRoomCode('');
+        setAppError('Виконано вхід з іншого пристрою! Вас відключено.');
+        setTimeout(() => setAppError(''), 7000); // Даємо 7 секунд, щоб точно встигли прочитати
     });
 
     const pingInterval = setInterval(() => {
