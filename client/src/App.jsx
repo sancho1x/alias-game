@@ -57,6 +57,7 @@ useEffect(() => {
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
       const token = params.get('access_token');
+      localStorage.setItem('alias_twitch_token', token);
       window.history.replaceState(null, '', window.location.pathname);
       
       fetch('https://api.twitch.tv/helix/users', {
@@ -78,7 +79,7 @@ useEffect(() => {
                setIsTwitchAuth(true);
                // 🔥 АВТОВХІД: Якщо є збережена кімната - одразу залітаємо
                if (pendingRoom) {
-                   socket.emit('joinRoom', { roomCode: pendingRoom, playerName: twitchName, playerId: basePlayerId, isTwitchAuth: true });
+                   socket.emit('joinRoom', { roomCode: pendingRoom, playerName: twitchName, playerId: basePlayerId, isTwitchAuth: true, twitchToken: token });
                    localStorage.removeItem('alias_pending_room');
                }
            }
@@ -91,7 +92,7 @@ useEffect(() => {
            setIsTwitchAuth(true);
            // 🔥 АВТОВХІД: Якщо гравець вже був залогінений - одразу залітаємо
            if (pendingRoom) {
-               socket.emit('joinRoom', { roomCode: pendingRoom, playerName: savedTwitchName, playerId: basePlayerId, isTwitchAuth: true });
+               socket.emit('joinRoom', { roomCode: pendingRoom, playerName: savedTwitchName, playerId: basePlayerId, isTwitchAuth: true, twitchToken: localStorage.getItem('alias_twitch_token') });
                localStorage.removeItem('alias_pending_room');
            }
        }
@@ -161,14 +162,23 @@ const handleTwitchLogin = () => {
     window.open(url, 'TwitchAuth', `width=${width},height=${height},left=${left},top=${top}`);
   };
 
-  const handleTwitchLogout = () => {
+const handleTwitchLogout = () => {
     localStorage.removeItem('alias_twitch_name');
+    localStorage.removeItem('alias_twitch_token'); // 🔥 НОВИЙ РЯДОК
     setPlayerName('');
     setIsTwitchAuth(false);
   };
 
-  const handleCreateRoom = () => playerName && socket.emit('createRoom', { playerName, playerId: basePlayerId, isTwitchAuth });
-  const handleJoinRoom = () => playerName && roomCode && socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth });
+const handleCreateRoom = () => {
+    const token = localStorage.getItem('alias_twitch_token'); // 🔥 Беремо токен
+    socket.emit('createRoom', { playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
+  };
+
+  const handleJoinRoom = () => {
+    if (joinCode.length !== 4) return;
+    const token = localStorage.getItem('alias_twitch_token'); // 🔥 Беремо токен
+    socket.emit('joinRoom', { roomCode: joinCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
+  };
   const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
   
   const handleCreateTeam = () => { if (newTeamName) { socket.emit('createTeam', { roomCode: room.id, teamName: newTeamName }); setNewTeamName(''); } };
