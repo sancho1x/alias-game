@@ -36,6 +36,22 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = {};
+const verifyTwitchIdentity = async (token, claimedName) => {
+    if (!token) return false;
+    try {
+        // Звертаємось до офіційного сервера авторизації Twitch
+        const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+            headers: { 'Authorization': `OAuth ${token}` }
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        // Твіч повертає логін. Перевіряємо, чи збігається він з іменем (без урахування регістру)
+        return data.login.toLowerCase() === claimedName.toLowerCase();
+    } catch (err) {
+        console.error('Помилка валідації Твіч:', err);
+        return false;
+    }
+};
 // 🔥 РОЗДІЛЯЄМО ТАЙМАУТИ
 const RAM_TIMEOUT = 2 * 60 * 60 * 1000;      // 2 години (для швидкої оперативної пам'яті)
 const DB_TIMEOUT = 14 * 24 * 60 * 60 * 1000; // 14 днів (для бази даних)
