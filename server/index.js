@@ -55,7 +55,9 @@ const verifyTwitchIdentity = async (token, claimedName) => {
 // 🔥 РОЗДІЛЯЄМО ТАЙМАУТИ
 const RAM_TIMEOUT = 2 * 60 * 60 * 1000;      // 2 години (для швидкої оперативної пам'яті)
 const DB_TIMEOUT = 14 * 24 * 60 * 60 * 1000; // 14 днів (для бази даних)
-const MAX_ROOMS = 100; 
+const MAX_ROOMS = 100;
+const roomCreationLimits = new Map();
+const ROOM_CREATION_COOLDOWN = 60 * 1000; // 60 секунд між створенням кімнат
 
 // Завантаження кімнат при старті сервера
 RoomModel.find({}).then(dbRooms => {
