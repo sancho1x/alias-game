@@ -8,10 +8,30 @@ const app = express();
 app.use(cors());
 
 const MONGO_URI = process.env.MONGO_URI;
-
 if (MONGO_URI) {
     mongoose.connect(MONGO_URI)
-      .then(() => console.log('✅ Підключено до MongoDB'))
+      .then(() => {
+          console.log('✅ Підключено до MongoDB');
+
+          // Визначаємо час: 14 днів тому
+          const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+
+          // 1. Відновлюємо в пам'ять тільки "свіжі" кімнати
+          RoomModel.find({ lastActive: { $gte: twoWeeksAgo } }).then(dbRooms => {
+              dbRooms.forEach(r => rooms[r.id] = r.toObject());
+              console.log(`Відновлено ${dbRooms.length} активних кімнат з БД`);
+          });
+
+          // 2. Одразу чистимо базу від старого сміття (щоб не забивати диск)
+          RoomModel.deleteMany({ lastActive: { $lt: twoWeeksAgo } })
+              .then(result => {
+                  if (result.deletedCount > 0) {
+                      console.log(`🗑 Автоочищення: Видалено ${result.deletedCount} старих кімнат з БД`);
+                  }
+              })
+              .catch(err => console.error('Помилка очищення БД:', err));
+
+      })
       .catch(err => console.error('❌ Помилка MongoDB:', err));
 } else {
     console.warn('⚠️ MONGO_URI не знайдено, працюємо без бази даних');
