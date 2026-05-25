@@ -159,7 +159,7 @@ const dictionaries = {
 
 io.on('connection', (socket) => {
   
-socket.on('createRoom', async ({ playerName, playerId, isTwitchAuth, twitchToken }) => {
+socket.on('createRoom', async ({ playerName, twitchLoginName, playerId, isTwitchAuth, twitchToken }) => {
     // Отримуємо IP клієнта (враховуємо проксі, якщо сервер лежить на Render/Railway тощо)
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
@@ -173,12 +173,12 @@ socket.on('createRoom', async ({ playerName, playerId, isTwitchAuth, twitchToken
     if (Object.keys(rooms).length >= MAX_ROOMS) return socket.emit('error', 'Сервери перевантажені!');
     
     if (isTwitchAuth) {
-        const isValid = await verifyTwitchIdentity(twitchToken, playerName);
+        const isValid = await verifyTwitchIdentity(twitchToken, twitchLoginName); // 🔥 ТЕПЕР ПЕРЕВІРЯЄМО ПАСПОРТ
         if (!isValid) return socket.emit('error', 'Помилка авторизації Twitch. Вийдіть і зайдіть знову.');
     }
 
     const roomCode = generateRoomCode();
-    const effectivePlayerId = isTwitchAuth ? `twitch_${playerName}` : playerId;
+    const effectivePlayerId = isTwitchAuth ? `twitch_${twitchLoginName}` : playerId; // 🔥 РОБИМО ID З ПАСПОРТА
 
     // 🔥 НОВИЙ КОД: Записуємо IP в "журнал" і ставимо таймер на його очищення
     roomCreationLimits.set(clientIp, Date.now());
@@ -207,18 +207,18 @@ socket.on('createRoom', async ({ playerName, playerId, isTwitchAuth, twitchToken
     if (MONGO_URI) RoomModel.findOneAndUpdate({ id: roomCode }, getSafeRoom(rooms[roomCode]), { upsert: true }).catch(()=>{});
   });
 
-socket.on('joinRoom', async ({ roomCode, playerName, playerId, isTwitchAuth, twitchToken }) => {
+socket.on('joinRoom', async ({ roomCode, playerName, twitchLoginName, playerId, isTwitchAuth, twitchToken }) => {
     const room = rooms[roomCode];
     if (!room) return socket.emit('error', 'Кімнату не знайдено.');
     touchRoom(roomCode);
     
     // Перевірка токена
     if (isTwitchAuth) {
-        const isValid = await verifyTwitchIdentity(twitchToken, playerName);
+        const isValid = await verifyTwitchIdentity(twitchToken, twitchLoginName); // 🔥 ТЕПЕР ПЕРЕВІРЯЄМО ПАСПОРТ
         if (!isValid) return socket.emit('error', 'Помилка авторизації Twitch. Вийдіть і зайдіть знову.');
     }
     
-    const effectivePlayerId = isTwitchAuth ? `twitch_${playerName}` : playerId;
+    const effectivePlayerId = isTwitchAuth ? `twitch_${twitchLoginName}` : playerId; // 🔥 РОБИМО ID З ПАСПОРТА
 
     if (room.kickedPlayers.includes(effectivePlayerId)) return socket.emit('error', 'Вас було виключено з цієї кімнати.');
     if (room.settings.requireTwitchAuth && !isTwitchAuth) return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch!');
