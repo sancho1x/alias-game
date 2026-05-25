@@ -69,35 +69,46 @@ useEffect(() => {
       })
       .then(res => res.json())
       .then(data => {
-        if (data.data && data.data.length > 0) {
-           const twitchName = data.data[0].display_name;
-           localStorage.setItem('alias_twitch_name', twitchName);
-           
-           if (window.opener) {
-               window.close();
-           } else {
-               setPlayerName(twitchName);
+            if (data.data && data.data.length > 0) {
+               // 🔥 КРОК 2: Розділяємо логін і відображуване ім'я
+               const twitchLoginName = data.data[0].login; 
+               const twitchDisplayName = data.data[0].display_name;
+               
+               setTwitchLogin(twitchLoginName);
+               localStorage.setItem('alias_twitch_login', twitchLoginName);
+               localStorage.setItem('alias_twitch_name', twitchDisplayName); // Залишаємо для історії
+               
+               // Якщо кастомного ніка ще немає, ставимо ім'я з Твіча
+               let finalPlayerName = localStorage.getItem('alias_display_name');
+               if (!finalPlayerName) {
+                   finalPlayerName = twitchDisplayName;
+                   setPlayerName(finalPlayerName);
+                   localStorage.setItem('alias_display_name', finalPlayerName);
+               }
+               
+               if (window.opener) {
+                   window.close();
+               } else {
+                   setIsTwitchAuth(true);
+                   if (pendingRoom) {
+                       socket.emit('joinRoom', { roomCode: pendingRoom, playerName: finalPlayerName, twitchLoginName: twitchLoginName, playerId: basePlayerId, isTwitchAuth: true, twitchToken: token });
+                       localStorage.removeItem('alias_pending_room');
+                   }
+               }
+            }
+          }).catch(err => console.error("Помилка Twitch", err));
+        } else {
+           // Відновлюємо сесію зі збереженого логіна
+           const savedTwitchLogin = localStorage.getItem('alias_twitch_login');
+           if (savedTwitchLogin) {
                setIsTwitchAuth(true);
-               // 🔥 АВТОВХІД: Якщо є збережена кімната - одразу залітаємо
                if (pendingRoom) {
-                   socket.emit('joinRoom', { roomCode: pendingRoom, playerName: twitchName, playerId: basePlayerId, isTwitchAuth: true, twitchToken: token });
+                   const currentName = localStorage.getItem('alias_display_name') || savedTwitchLogin;
+                   socket.emit('joinRoom', { roomCode: pendingRoom, playerName: currentName, twitchLoginName: savedTwitchLogin, playerId: basePlayerId, isTwitchAuth: true, twitchToken: localStorage.getItem('alias_twitch_token') });
                    localStorage.removeItem('alias_pending_room');
                }
            }
         }
-      }).catch(err => console.error("Помилка Twitch", err));
-    } else {
-       const savedTwitchName = localStorage.getItem('alias_twitch_name');
-       if (savedTwitchName) {
-           setPlayerName(savedTwitchName);
-           setIsTwitchAuth(true);
-           // 🔥 АВТОВХІД: Якщо гравець вже був залогінений - одразу залітаємо
-           if (pendingRoom) {
-               socket.emit('joinRoom', { roomCode: pendingRoom, playerName: savedTwitchName, playerId: basePlayerId, isTwitchAuth: true, twitchToken: localStorage.getItem('alias_twitch_token') });
-               localStorage.removeItem('alias_pending_room');
-           }
-       }
-    }
 
     const handleStorageChange = (e) => {
         if (e.key === 'alias_twitch_name') {
@@ -184,12 +195,24 @@ socket.on('kicked', () => {
     const top = window.screen.height / 2 - height / 2;
     window.location.href = url;
   };
-
 const handleTwitchLogout = () => {
     localStorage.removeItem('alias_twitch_name');
-    localStorage.removeItem('alias_twitch_token'); // 🔥 НОВИЙ РЯДОК
-    setPlayerName('');
+    localStorage.removeItem('alias_twitch_token');
+    localStorage.removeItem('alias_twitch_login'); // 🔥 Очищаємо паспорт
+    setTwitchLogin('');
+    // Не видаляємо alias_display_name, бо юзер може хотіти грати під ним без Твіча
     setIsTwitchAuth(false);
+  };
+
+const handleCreateRoom = () => {
+    const token = localStorage.getItem('alias_twitch_token'); 
+    socket.emit('createRoom', { playerName, twitchLoginName: twitchLogin, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
+  };
+
+const handleJoinRoom = () => {
+    if (roomCode.length !== 4) return;
+    const token = localStorage.getItem('alias_twitch_token'); 
+    socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, twitchLoginName: twitchLogin, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
   };
 
 const handleCreateRoom = () => {
@@ -321,8 +344,22 @@ if (!room) {
               </div>
             ) : (
               <>
-                <input type="text" placeholder="Нікнейм" value={playerName} onChange={e => setPlayerName(e.target.value)} />
-                <button style={{ backgroundColor: '#a970ff', color: 'white' }} onClick={handleTwitchLogin}>📺 Увійти через Twitch</button>
+<input 
+  type="text" 
+  placeholder="Нікнейм" 
+  value={playerName} 
+  maxLength={20}
+  onChange={e => {
+    setPlayerName(e.target.value);
+    localStorage.setItem('alias_display_name', e.target.value);
+  }} 
+/>
+                <button style={{ backgroundColor: '#a970ff', color: 'white', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={handleTwitchLogin}>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+  </svg>
+  Увійти через Twitch
+</button>
               </>
             )}
 
