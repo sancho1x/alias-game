@@ -9,6 +9,8 @@ const REDIRECT_URI = window.location.origin;
 const BACKEND_URL = 'https://alias-game-2oys.onrender.com';
 const socket = io(BACKEND_URL);
 
+const countdownSound = new Audio('/countdown.mp3');
+
 const getPersistentId = () => {
   let id = localStorage.getItem('alias_player_id');
   if (!id) {
@@ -160,7 +162,7 @@ socket.on('kicked', () => {
     };
   }, []);
 
-// 🔥 НОВИЙ КОД: Звук відліку тільки для активних гравців (ПЕРЕНЕСЕНО СЮДИ)
+// ⏱ НОВИЙ КОД: звук відліку тільки для активних гравців + захист від фонових вкладок
   useEffect(() => {
     // Спрацьовує тільки коли статус змінюється на countdown і таймер на 3
     if (room?.gameState?.status === 'countdown' && localTimer === 3) {
@@ -174,9 +176,15 @@ socket.on('kicked', () => {
       const amIActive = currentPlayerId === activeExplainer?.playerId || currentPlayerId === activeGuesser?.playerId;
 
       if (amIActive) {
-        const audio = new Audio('/countdown.mp3');
-        audio.volume = 0.6; 
-        audio.play().catch(err => console.log('Автоплей заблоковано браузером:', err));
+        // Ставимо мікро-паузу на 100мс
+        const timer = setTimeout(() => {
+          countdownSound.volume = 0.6; // Зберігаємо твоє налаштування гучності
+          countdownSound.currentTime = 0;
+          countdownSound.play().catch(err => console.log('Автоплей заблоковано браузером:', err));
+        }, 100);
+
+        // Якщо це стара подія з фонової вкладки, скасовуємо звук до його початку
+        return () => clearTimeout(timer);
       }
     }
   }, [room?.gameState?.status, localTimer, currentPlayerId, room]);
