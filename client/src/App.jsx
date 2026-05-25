@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
@@ -32,6 +32,14 @@ function App() {
   const [localTimer, setLocalTimer] = useState(0);
   
   const [appError, setAppError] = useState('');
+  const errorTimerRef = useRef(null); // Зберігаємо ID таймера
+
+  // 🔥 НОВИЙ КОД: Універсальна функція показу помилок
+  const showError = (msg, time = 4000) => {
+      setAppError(msg);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setAppError(''), time);
+  };
   
   const [isCodeVisible, setIsCodeVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -132,23 +140,18 @@ useEffect(() => {
     });
     socket.on('timerUpdate', setLocalTimer);
     
-    socket.on('error', (msg) => {
-        setAppError(msg);
-        setTimeout(() => setAppError(''), 4000);
-    });
+socket.on('error', (msg) => showError(msg));
 
-socket.on('kicked', () => {
+    socket.on('kicked', () => {
         setRoom(null);
         setRoomCode('');
-        setAppError('Вас вигнали з кімнати!');
-        setTimeout(() => setAppError(''), 5000);
+        showError('Вас вигнали з кімнати!', 5000);
     });
 
     socket.on('kicked_duplicate', () => {
         setRoom(null);
         setRoomCode('');
-        setAppError('Виконано вхід з іншого пристрою! Вас відключено.');
-        setTimeout(() => setAppError(''), 7000); // Даємо 7 секунд, щоб точно встигли прочитати
+        showError('Виконано вхід з іншого пристрою! Вас відключено.', 7000);
     });
 
     const pingInterval = setInterval(() => {
@@ -245,58 +248,56 @@ const handleCopyCode = () => {
     }
   };
 
-const handleStartGameLobby = () => {
-    const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
-    if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
-        if (window.confirm('Гру вже завершено! Бажаєте скинути рахунки і почати нове коло?')) {
-            socket.emit('resetGame', { roomCode: room.id });
-            setTimeout(() => {
-                if (room.players.some(p => p.teamId !== null && !p.online)) {
-                    setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
-                    setTimeout(() => setAppError(''), 4000);
-                    return;
-                }
-                socket.emit('startTurn', { roomCode: room.id });
-            }, 500);
-        }
-        return;
-    }
-
-    // 🔥 НОВИЙ КОД: Перевірка словника в лобі
-    if (room.settings.dictType === 'custom') {
-        const wordCount = room.settings.customWords?.length || 0;
-        if (wordCount < 50) {
-            setAppError(`Для свого словника потрібно мінімум 50 слів! (Зараз: ${wordCount})`);
-            setTimeout(() => setAppError(''), 4000);
-            return;
-        }
-    }
-
-    if (room.players.some(p => p.teamId !== null && !p.online)) {
-        setAppError('Один з гравців у командах не в мережі! Дочекайтесь його або замініть.');
-        setTimeout(() => setAppError(''), 4000);
-        return;
-    }
-    socket.emit('startTurn', { roomCode: room.id });
-  };
-
-  const handleStartTurnFromScoreboard = () => {
-      // 🔥 НОВИЙ КОД: Перевірка словника на екрані результатів
+// 🔥 НОВИЙ КОД: Універсальна перевірка перед стартом гри
+  const validateBeforeStart = () => {
+      // 1. Перевірка словника
       if (room.settings.dictType === 'custom') {
           const wordCount = room.settings.customWords?.length || 0;
           if (wordCount < 50) {
               setAppError(`Для свого словника потрібно мінімум 50 слів! (Зараз: ${wordCount})`);
               setTimeout(() => setAppError(''), 4000);
-              return;
+              return false; // Забороняємо старт
           }
       }
 
+      // 2. Перевірка онлайну
       if (room.players.some(p => p.teamId !== null && !p.online)) {
-          setAppError('Один з гравців у командах не в мережі! Дочекайтесь його.');
+          setAppError('Один з гравців у командах не в мережі! Дочекайтесь його або замініть.');
           setTimeout(() => setAppError(''), 4000);
-          return;
+          return false; // Забороняємо старт
       }
-      socket.emit('startTurn', { roomCode: room.id });
+
+      return true; // Все супер, можна грати
+  };
+
+  const handleStartGameLobby = () => {
+    const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+    
+    // Перевірка на завершення гри
+    if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
+        if (window.confirm('Гру вже завершено! Бажаєте скинути рахунки і почати нове коло?')) {
+            socket.emit('resetGame', { roomCode: room.id });
+            setTimeout(() => {
+                // Використовуємо нашу нову функцію перевірки
+                if (validateBeforeStart()) {
+                    socket.emit('startTurn', { roomCode: room.id });
+                }
+            }, 500);
+        }
+        return;
+    }
+
+    // Звичайний старт з перевіркою
+    if (validateBeforeStart()) {
+        socket.emit('startTurn', { roomCode: room.id });
+    }
+  };
+
+  const handleStartTurnFromScoreboard = () => {
+      // Тут теж просто викликаємо одну функцію
+      if (validateBeforeStart()) {
+          socket.emit('startTurn', { roomCode: room.id });
+      }
   };
 
   const ErrorToast = () => appError ? (
