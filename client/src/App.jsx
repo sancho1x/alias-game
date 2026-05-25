@@ -358,6 +358,36 @@ if (!room) {
             <input type="text" placeholder="Введіть код" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
             <button className="secondary-btn" onClick={handleJoinRoom} disabled={!playerName || !roomCode}>Увійти в кімнату</button>
           </div>
+          {/* 🔥 НОВИЙ КОД: SEO-блок, опис гри та правила */}
+          <div className="container" style={{ marginTop: '20px', padding: '20px', textAlign: 'left', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '10px', color: 'var(--accent-yellow)' }}>Про гру Еліас (Alias) Онлайн</h2>
+            <p style={{ fontSize: '0.9rem', lineHeight: '1.5', color: 'var(--text-muted)', marginBottom: '15px' }}>
+              <strong>Еліас</strong> — це популярна командна настільна гра для компанії. Головне завдання — пояснити своєму партнеру по команді якомога більше слів за обмежений час. Використовуйте синоніми, асоціації та натяки, щоб перемогти. Грайте онлайн з друзями або на стрімі абсолютно безкоштовно та без реєстрації!
+            </p>
+            
+            <h3 style={{ fontSize: '1rem', marginBottom: '8px', color: 'white' }}>📜 Короткі правила:</h3>
+            <ul style={{ fontSize: '0.9rem', color: 'var(--text-muted)', paddingLeft: '20px', marginBottom: '15px', lineHeight: '1.4' }}>
+              <li>Граємо командами по 2 людини.</li>
+              <li>Пояснюйте слова українською без використання спільнокореневих слів чи перекладів.</li>
+              <li>Вгадали слово: <strong>+1 бал</strong>. Не знаєте і пропустили (скіп): <strong>-1 бал</strong>.</li>
+            </ul>
+            
+            <div style={{ textAlign: 'center', marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+              <a 
+                href="https://github.com/sancho1x/alias-game" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#a970ff', textDecoration: 'none', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'opacity 0.2s' }}
+                onMouseOver={(e) => e.target.style.opacity = '0.8'}
+                onMouseOut={(e) => e.target.style.opacity = '1'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                📖 Читати повний посібник та механіки
+              </a>
+            </div>
+          </div>
         </div>
       </>
     );
