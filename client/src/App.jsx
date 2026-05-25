@@ -399,31 +399,17 @@ const renderPlayersList = (compact = false) => (
             </div>
             
 {/* 🔥 НОВИЙ КОД: Блок з кнопками передачі хоста, скидання ніка та кіку */}
-{isHost && p.playerId !== currentPlayerId && !compact && (
-    <div style={{ display: 'flex', gap: '5px' }}>
-      <button 
-        onClick={() => socket.emit('resetPlayerName', { roomCode: room.id, targetPlayerId: p.playerId })} 
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
-        title="Скинути нікнейм до дефолтного"
-      >
-        🔄
-      </button>
-      <button 
-        onClick={() => handleTransferHost(p.playerId)} 
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
-        title="Передати права хоста"
-      >
-        👑
-      </button>
-      <button 
-        onClick={() => handleKickPlayer(p.playerId)} 
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
-        title="Вигнати гравця"
-      >
-        💀
-      </button>
-    </div>
-)}
+            {isHost && p.playerId !== currentPlayerId && !compact && (
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <button 
+                    onClick={() => socket.emit('resetPlayerName', { roomCode: room.id, targetPlayerId: p.playerId })} 
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+                    title="Скинути нікнейм до дефолтного"
+                  >
+                    🔄
+                  </button>
+                  <button 
+                    onClick={() => handleTransferHost(p.playerId)} 
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
                     title="Передати права хоста"
                   >
