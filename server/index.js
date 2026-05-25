@@ -222,6 +222,10 @@ socket.on('joinRoom', async ({ roomCode, playerName, twitchLoginName, playerId, 
 
     if (room.kickedPlayers.includes(effectivePlayerId)) return socket.emit('error', 'Вас було виключено з цієї кімнати.');
     if (room.settings.requireTwitchAuth && !isTwitchAuth) return socket.emit('error', 'Хост увімкнув обов\'язковий вхід через Twitch!');
+    const isNameTaken = room.players.some(p => p.name.toLowerCase() === playerName.toLowerCase() && p.playerId !== effectivePlayerId);
+    if (isNameTaken) {
+        return socket.emit('error', 'Цей нікнейм вже зайнятий в цій кімнаті. Виберіть інший!');
+    }
     
     const existing = room.players.find(p => p.playerId === effectivePlayerId);
 
@@ -382,14 +386,53 @@ socket.on('updateSettings', ({ roomCode, settings }) => {
     broadcastRoomUpdate(roomCode);
   });
 
-  socket.on('createTeam', ({ roomCode, teamName }) => {
+socket.on('createTeam', ({ roomCode, teamName }) => {
     const room = rooms[roomCode];
     if (room) {
       touchRoom(roomCode);
+      
+      // 1. Захист від однакових назв команд
+      const isNameTaken = room.teams.some(t => t.name.toLowerCase() === teamName.toLowerCase());
+      if (isNameTaken) return socket.emit('error', 'Команда з такою назвою вже існує!');
+
+      // 2. Ліміт на кількість команд (мінімум 2, або половина від гравців)
+      const maxTeams = Math.max(2, Math.floor(room.players.length / 2));
+      if (room.teams.length >= maxTeams) return socket.emit('error', `Для поточної кількості гравців максимум команд: ${maxTeams}`);
+
       const newTeam = { id: Date.now().toString(), name: teamName, score: 0 };
       room.teams.push(newTeam);
       room.gameState.explainerIndices[newTeam.id] = 0;
       broadcastRoomUpdate(roomCode);
+    }
+  });
+    
+    // 🔥 НОВИЙ КОД: Перейменування команди хостом
+  socket.on('renameTeam', ({ roomCode, teamId, newName }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (!room || !player || room.hostId !== player.playerId) return; // Тільки хост
+    
+    const isNameTaken = room.teams.some(t => t.name.toLowerCase() === newName.toLowerCase() && t.id !== teamId);
+    if (isNameTaken) return socket.emit('error', 'Команда з такою назвою вже існує!');
+
+    const team = room.teams.find(t => t.id === teamId);
+    if (team && newName.trim()) {
+        team.name = newName.trim();
+        broadcastRoomUpdate(roomCode);
+    }
+  });
+
+  // 🔥 НОВИЙ КОД: Скидання нікнейму гравця хостом
+  socket.on('resetPlayerName', ({ roomCode, targetPlayerId }) => {
+    const room = rooms[roomCode];
+    const player = room?.players.find(p => p.id === socket.id);
+    if (!room || !player || room.hostId !== player.playerId) return; // Тільки хост
+
+    const target = room.players.find(p => p.playerId === targetPlayerId);
+    if (target) {
+        // Якщо з Твіча - повертаємо його справжній твіч-логін. Якщо ні - робимо його "Гравець_123"
+        target.name = target.isTwitch ? target.playerId.replace('twitch_', '') : `Гравець_${Math.floor(Math.random() * 1000)}`;
+        broadcastRoomUpdate(roomCode);
     }
   });
 
