@@ -104,7 +104,13 @@ RoomModel.find({}).then(dbRooms => {
   console.log(`📦 Відновлено активних кімнат: ${Object.keys(rooms).length}`);
 });
 
-const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+const generateRoomCode = () => {
+  let code;
+  do {
+    code = Math.random().toString(36).substring(2, 6).toUpperCase();
+  } while (rooms[code]); // Цикл крутиться, поки не знайде унікальний код
+  return code;
+};
 
 const getSafeRoom = (room) => {
   const { timerInterval, hostTimeoutObj, ...safeRoom } = room;
