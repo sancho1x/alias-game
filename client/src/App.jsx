@@ -21,7 +21,8 @@ const getPersistentId = () => {
 const basePlayerId = getPersistentId();
 
 function App() {
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(() => localStorage.getItem('alias_display_name') || '');
+  const [twitchLogin, setTwitchLogin] = useState(() => localStorage.getItem('alias_twitch_login') || '');
   const [isTwitchAuth, setIsTwitchAuth] = useState(false);
   const [roomCode, setRoomCode] = useState('');
   const [room, setRoom] = useState(null);
