@@ -382,19 +382,48 @@ const renderPlayersList = (compact = false) => (
     </svg>
   </span>
 )}
-                {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
-                {!p.online && " (не в мережі)"}
+{p.name} 
+{p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
+{!p.online && " (не в мережі)"}
+
+{/* 🔥 НОВИЙ КОД: Справжній нікнейм тільки для хоста */}
+{isHost && !compact && p.playerId !== room.hostId && (
+  <span className="muted" style={{ fontSize: '0.85rem', marginLeft: '8px' }}>
+    ({p.isTwitch ? `Twitch: ${p.playerId.replace('twitch_', '')}` : 'Без Twitch'})
+  </span>
+)}
               </span>
               <span className="muted" style={{ marginLeft: '10px' }}>
                 {room.teams.find(t => t.id === p.teamId) ? `(${room.teams.find(t => t.id === p.teamId).name})` : ''}
               </span>
             </div>
             
-            {/* 🔥 НОВИЙ КОД: Блок з кнопками передачі хоста та кіку */}
-            {isHost && p.playerId !== currentPlayerId && !compact && (
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <button 
-                    onClick={() => handleTransferHost(p.playerId)} 
+{/* 🔥 НОВИЙ КОД: Блок з кнопками передачі хоста, скидання ніка та кіку */}
+{isHost && p.playerId !== currentPlayerId && !compact && (
+    <div style={{ display: 'flex', gap: '5px' }}>
+      <button 
+        onClick={() => socket.emit('resetPlayerName', { roomCode: room.id, targetPlayerId: p.playerId })} 
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+        title="Скинути нікнейм до дефолтного"
+      >
+        🔄
+      </button>
+      <button 
+        onClick={() => handleTransferHost(p.playerId)} 
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+        title="Передати права хоста"
+      >
+        👑
+      </button>
+      <button 
+        onClick={() => handleKickPlayer(p.playerId)} 
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
+        title="Вигнати гравця"
+      >
+        💀
+      </button>
+    </div>
+)}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
                     title="Передати права хоста"
                   >
@@ -842,8 +871,27 @@ const renderPlayersList = (compact = false) => (
                             onClick={() => setExpandedTeams(prev => ({...prev, [t.id]: !prev[t.id]}))}
                             title="Натисни, щоб переглянути історію раундів"
                           >
-                            <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-                            {t.name} <span className="muted" style={{ fontWeight: 'normal' }}>({teamPlayers.length}/2)</span>
+<span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+{t.name} 
+
+{/* 🔥 НОВИЙ КОД: Кнопка перейменування команди */}
+{isHost && !isGamePausedInLobby && (
+  <span 
+    style={{ fontSize: '0.9rem', marginLeft: '5px', opacity: '0.7' }} 
+    title="Перейменувати команду"
+    onClick={(e) => {
+      e.stopPropagation(); // Щоб не відкривалась історія при кліку на олівець
+      const newName = window.prompt('Введіть нову назву команди:', t.name);
+      if (newName && newName.trim() && newName.trim() !== t.name) {
+         socket.emit('renameTeam', { roomCode: room.id, teamId: t.id, newName: newName.trim() });
+      }
+    }}
+  >
+    ✏️
+  </span>
+)}
+
+<span className="muted" style={{ fontWeight: 'normal', marginLeft: '8px' }}>({teamPlayers.length}/2)</span>
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '25px' }}>
                             {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
