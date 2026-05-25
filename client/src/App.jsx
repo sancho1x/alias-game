@@ -811,11 +811,30 @@ const renderPlayersList = (compact = false) => (
                 </label>
                 
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Словник: 
-                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} style={{ marginTop: '8px', width: '100%' }}>
-                    <option value="easy">Лайт (Прості)</option><option value="medium">Медіум (Середні)</option>
-                    <option value="hard">Хард (Складні)</option><option value="gamer">Геймерський</option>
-                    <option value="custom">Свій словник</option>
-                  </select>
+<select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} style={{ marginTop: '8px', width: '100%' }}>
+            {/* Базові */}
+            <option value="easy">Лайт (Прості)</option>
+            <option value="medium">Медіум (Середні)</option>
+            <option value="hard">Хард (Складні)</option>
+            
+            {/* Альтернативні */}
+            <option value="easy_alt">Легкий (Новий)</option>
+            <option value="medium_alt">Середній (Новий)</option>
+            <option value="hard_alt">Важкий (Новий)</option>
+            
+            {/* Тематичні */}
+            <option value="movies">Кіно та серіали</option>
+            <option value="gamer_experimental_alt">Ігровий сленг</option>
+            <option value="gamer_experimental">Геймерський (Старий)</option>
+            <option value="science">Наука</option>
+            <option value="marvel_dc">Marvel & DC</option>
+            <option value="ua_culture">Український колорит</option>
+            <option value="IT">IT (Айтішка)</option>
+            <option value="harry_potter">Гаррі Поттер</option>
+            
+            {/* Кастомний */}
+            <option value="custom">Свій словник</option>
+          </select>
                 </label>
 
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Кількість кіл (0 = Безкінечно): 
