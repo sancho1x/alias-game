@@ -144,7 +144,7 @@ const broadcastRoomUpdate = (roomCode) => {
   room.players.forEach(player => {
       if (player.online && player.id) {
           // Робимо глибоку копію об'єкта, щоб зміна для одного не вплинула на інших
-          const personalizedRoom = JSON.parse(JSON.stringify(safeRoom)); 
+          const personalizedRoom = structuredClone(safeRoom);
 
           // Якщо гра йде/на паузі, і цей гравець НЕ пояснюючий — ховаємо слово!
           if ((room.gameState.status === 'playing' || room.gameState.status === 'paused') && player.playerId !== currentExplainerId) {
