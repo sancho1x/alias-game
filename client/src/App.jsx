@@ -36,7 +36,7 @@ function App() {
 
   const [expandedTeams, setExpandedTeams] = useState({});
 
-  const currentPlayerId = isTwitchAuth ? `twitch_${playerName}` : basePlayerId;
+  const currentPlayerId = isTwitchAuth ? `twitch_${twitchLogin}` : basePlayerId;
 
 useEffect(() => {
     // 🔥 НОВИЙ КОД: Шукаємо код кімнати в URL або в пам'яті
