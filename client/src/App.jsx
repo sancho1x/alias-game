@@ -198,32 +198,20 @@ socket.on('kicked', () => {
 const handleTwitchLogout = () => {
     localStorage.removeItem('alias_twitch_name');
     localStorage.removeItem('alias_twitch_token');
-    localStorage.removeItem('alias_twitch_login'); // 🔥 Очищаємо паспорт
+    localStorage.removeItem('alias_twitch_login');
     setTwitchLogin('');
-    // Не видаляємо alias_display_name, бо юзер може хотіти грати під ним без Твіча
     setIsTwitchAuth(false);
   };
 
-const handleCreateRoom = () => {
+  const handleCreateRoom = () => {
     const token = localStorage.getItem('alias_twitch_token'); 
     socket.emit('createRoom', { playerName, twitchLoginName: twitchLogin, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
   };
 
-const handleJoinRoom = () => {
+  const handleJoinRoom = () => {
     if (roomCode.length !== 4) return;
     const token = localStorage.getItem('alias_twitch_token'); 
     socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, twitchLoginName: twitchLogin, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
-  };
-
-const handleCreateRoom = () => {
-    const token = localStorage.getItem('alias_twitch_token'); // 🔥 Беремо токен
-    socket.emit('createRoom', { playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
-  };
-
-const handleJoinRoom = () => {
-    if (roomCode.length !== 4) return;
-    const token = localStorage.getItem('alias_twitch_token'); 
-    socket.emit('joinRoom', { roomCode: roomCode.toUpperCase(), playerName, playerId: basePlayerId, isTwitchAuth, twitchToken: token });
   };
   const updateSettings = (newSettings) => socket.emit('updateSettings', { roomCode: room.id, settings: { ...room.settings, ...newSettings } });
   
