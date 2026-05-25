@@ -349,7 +349,13 @@ const renderPlayersList = (compact = false) => (
           <li key={p.playerId} style={{ opacity: p.online ? 1 : 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <span style={{ color: p.online ? 'inherit' : 'var(--text-muted)' }}>
-                {p.isTwitch && <span style={{ marginRight: '5px' }} title="Авторизований через Twitch">📺</span>}
+{p.isTwitch && (
+  <span style={{ marginRight: '6px', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }} title="Авторизований через Twitch">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#9146FF">
+      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+    </svg>
+  </span>
+)}
                 {p.name} {p.playerId === room.hostId && <span className="host-crown" title="Хост">👑</span>} 
                 {!p.online && " (не в мережі)"}
               </span>
