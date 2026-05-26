@@ -30,6 +30,7 @@ function App() {
   const [room, setRoom] = useState(null);
   const [newTeamName, setNewTeamName] = useState('');
   const [localTimer, setLocalTimer] = useState(0);
+  const [isConnected, setIsConnected] = useState(socket.connected);
   
   const [appError, setAppError] = useState('');
   const errorTimerRef = useRef(null); // Зберігаємо ID таймера
@@ -140,7 +141,17 @@ useEffect(() => {
     });
     socket.on('timerUpdate', setLocalTimer);
     
-socket.on('error', (msg) => showError(msg));
+    socket.on('error', (msg) => showError(msg));
+
+    socket.on('connect', () => {
+        setIsConnected(true);
+        console.log('✅ Сервер прокинувся і підключився!');
+    });
+
+    socket.on('disconnect', () => {
+        setIsConnected(false);
+        console.log('❌ Зв\'язок із сервером втрачено');
+    });
 
     socket.on('kicked', () => {
         setRoom(null);
