@@ -946,7 +946,7 @@ const renderPlayersList = (compact = false) => (
 
                 return (
                   <div key={t.id} className="team-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '15px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
                           <span 
                             style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none' }}
@@ -983,10 +983,10 @@ const renderPlayersList = (compact = false) => (
                         </div>
 
                         {/* 🔥 НОВИЙ КОД: Кнопка "Вийти", якщо гравець у цій команді */}
-<div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+<div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
   {amIInThisTeam ? (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>Твоя команда</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+      <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)', whiteSpace: 'nowrap' }}>Твоя команда</span>
       <button className="action-btn btn-leave" disabled={isGamePausedInLobby} onClick={() => socket.emit('leaveTeam', { roomCode: room.id })}>Вийти</button>
     </div>
   ) : !isFull ? (
