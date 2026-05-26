@@ -562,21 +562,27 @@ socket.on('resetGame', ({ roomCode }) => {
     room.gameState.pausedState = null;
     broadcastRoomUpdate(roomCode);
   });
-
-  const getRandomWord = (room) => {
+    
+const getRandomWord = (room) => {
     let pool = room.settings.dictType === 'custom' 
-        ? (room.settings.customWords?.length > 0 ? room.settings.customWords : ["СЛОВНИК", "ПОРОЖНІЙ"])
+        ? (room.settings.customWords || [])
         : (dictionaries[room.settings.dictType] || dictionaries.easy);
-        
-    let availableWords = pool.filter(w => !room.gameState.usedWords.includes(w));
-    if (availableWords.length === 0) {
-      room.gameState.usedWords = [];
-      availableWords = pool;
-    }
-    const word = availableWords[Math.floor(Math.random() * availableWords.length)];
-    room.gameState.usedWords.push(word);
-    return word;
-  };
+
+    // Додатковий захист: якщо словник порожній – повертаємо "помилку"
+    if (!pool || pool.length === 0) return "ПОМИЛКА_СЛОВНИКА";
+
+    const uniquePool = [...new Set(pool)];
+    let availableWords = uniquePool.filter(w => !room.gameState.usedWords.includes(w));
+  
+  if (availableWords.length === 0) {
+    room.gameState.usedWords = [];
+    availableWords = uniquePool; // Беремо очищений пул
+  }
+  
+  const word = availableWords[Math.floor(Math.random() * availableWords.length)];
+  room.gameState.usedWords.push(word);
+  return word;
+};
 
   const runTimer = (room) => {
     if (room.timerInterval) clearInterval(room.timerInterval);
