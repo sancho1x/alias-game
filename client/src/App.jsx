@@ -508,7 +508,7 @@ const renderPlayersList = (compact = false) => (
             
 {/* 🔥 НОВИЙ КОД: Блок з кнопками передачі хоста, скидання ніка та кіку */}
             {isHost && p.playerId !== currentPlayerId && !compact && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                   <button 
                     onClick={() => socket.emit('resetPlayerName', { roomCode: room.id, targetPlayerId: p.playerId })} 
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
