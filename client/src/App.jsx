@@ -156,11 +156,6 @@ useEffect(() => {
     
     socket.on('error', (msg) => showError(msg));
 
-    socket.on('connect', () => {
-        setIsConnected(true);
-        console.log('✅ Сервер прокинувся і підключився!');
-    });
-
     socket.on('disconnect', () => {
         setIsConnected(false);
         console.log('❌ Зв\'язок із сервером втрачено');
@@ -189,6 +184,46 @@ useEffect(() => {
     };
   }, []);
 
+// 🔥 НОВИЙ КОД: Захист від згортання (Sleep/Wake) на мобільних телефонах
+  useEffect(() => {
+    const handleWakeUp = () => {
+      setIsConnected(true);
+      // Якщо у нас вже є код кімнати та ім'я - автоматично "стукаємо" на сервер
+      if (roomCode && playerName) {
+        console.log('🔄 Відновлення сесії після сну/згортання...');
+        const token = localStorage.getItem('alias_twitch_token');
+        socket.emit('joinRoom', { 
+          roomCode: roomCode.toUpperCase(), 
+          playerName: playerName, 
+          twitchLoginName: twitchLogin, 
+          playerId: basePlayerId, 
+          isTwitchAuth: isTwitchAuth, 
+          twitchToken: token 
+        });
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Якщо вкладку розгорнули після згортання
+      if (document.visibilityState === 'visible') {
+        if (!socket.connected) {
+          socket.connect(); // Примусово будимо сокет, якщо він відвалився
+        } else {
+          handleWakeUp(); // Якщо живий, але була пауза - синхронізуємо стан із сервером
+        }
+      }
+    };
+
+    // Вішаємо слухачі
+    socket.on('connect', handleWakeUp);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      socket.off('connect', handleWakeUp);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [roomCode, playerName, twitchLogin, isTwitchAuth, basePlayerId]);
+  
 // ⏱ НОВИЙ КОД: звук відліку тільки для активних гравців + захист від фонових вкладок
   useEffect(() => {
     // Спрацьовує тільки коли статус змінюється на countdown і таймер на 3
