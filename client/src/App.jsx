@@ -54,8 +54,7 @@ function App() {
   useEffect(() => {
     let timeout;
     if (!isConnected && showLoading) {
-      // Чекаємо 800 мілісекунд. Якщо за цей час не підключились - показуємо крутилку
-      timeout = setTimeout(() => setShowLoading(true), 800);
+      timeout = setTimeout(() => setShowLoading(true), 1500);
     } else {
       // Якщо підключились швидко - ховаємо миттєво
       setShowLoading(false);
