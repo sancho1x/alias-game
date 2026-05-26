@@ -844,13 +844,17 @@ const renderPlayersList = (compact = false) => (
 
                 {/* ПРИБРАНО disabled={isGamePausedInLobby} ДЛЯ ВСІХ ПОЛІВ НИЖЧЕ */}
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Час раунду (в секундах): 
-                  <input 
-                    type="number"
-                    min="10"
-                    value={room.settings.timer} 
-                    onChange={e => updateSettings({ timer: Number(e.target.value) || 60 })} 
-                    style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
-                  />
+<input 
+  type="number"
+  min="10"
+  value={room.settings.timer} 
+  onChange={e => updateSettings({ timer: e.target.value === '' ? '' : Number(e.target.value) })} 
+  onBlur={e => {
+      const val = Number(e.target.value);
+      if (!val || val < 10) updateSettings({ timer: 60 });
+  }}
+  style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+/>
                 </label>
                 
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Словник: 
