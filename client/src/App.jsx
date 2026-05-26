@@ -337,7 +337,7 @@ const ErrorToast = () => appError ? (
   ) : null;
 
   // 🔥 НОВИЙ КОД: Екран завантаження, якщо сервер ще спить
-  if (!isConnected) {
+  if (!isConnected && showLoading) {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', 
