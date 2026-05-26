@@ -311,7 +311,7 @@ const handleCopyCode = () => {
       }
   };
 
-  const ErrorToast = () => appError ? (
+const ErrorToast = () => appError ? (
     <div style={{
         position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
         backgroundColor: 'var(--accent-red)', color: 'white', padding: '15px 30px',
@@ -322,7 +322,32 @@ const handleCopyCode = () => {
     </div>
   ) : null;
 
-if (!room) {
+  // 🔥 НОВИЙ КОД: Екран завантаження, якщо сервер ще спить
+  if (!isConnected) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', 
+        justifyContent: 'center', height: '100vh', textAlign: 'center', padding: '20px'
+      }}>
+        <h2 style={{ color: 'var(--accent-green)' }}>🚀 Сервер прокидається...</h2>
+        <p className="muted" style={{ maxWidth: '400px', margin: '10px auto', lineHeight: '1.5' }}>
+          Оскільки ми використовуємо безкоштовний хостинг, серверу треба близько хвилини на "холодний старт". 
+          <br/><br/>
+          Будь ласка, зачекай і не закривай сторінку!
+        </p>
+        <div style={{
+           marginTop: '30px', width: '50px', height: '50px', 
+           border: '4px solid rgba(255,255,255,0.1)', 
+           borderTop: '4px solid var(--accent-green)', 
+           borderRadius: '50%', animation: 'spin 1s linear infinite'
+        }}></div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // Твій старий код лобі
+  if (!room) {
     return (
       <>
         <ErrorToast />
