@@ -602,7 +602,7 @@ const renderPlayersList = (compact = false) => (
     return (
       <>
         <ErrorToast />
-        <div className="app-wrapper game-mode">
+        <div className="app-wrapper game-mode" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="game-header">
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
               <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
@@ -628,10 +628,14 @@ const renderPlayersList = (compact = false) => (
             </div>
           </div>
           
-          <div className="game-board">
+          <div className="game-board" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '20px', overflowY: 'auto' }}>
             {isExplainer ? (
               <>
-                <div className="word-container"><h1 className="main-word">{room.gameState.currentWord}</h1></div>
+                <div className="word-container" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
+  <h1 className="main-word" style={{ margin: 0, wordBreak: 'break-word', textAlign: 'center' }}>
+    {room.gameState.currentWord}
+  </h1>
+</div>
                 <div className="action-buttons">
                   {!isLast ? (
                     <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>
