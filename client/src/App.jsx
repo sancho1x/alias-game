@@ -611,21 +611,21 @@ const renderPlayersList = (compact = false) => (
               </span>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {(isHost || isExplainer) && !isLast && (
-                <>
-                  <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
-                    ⏸
-                  </button>
-                  <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
-                    🏠
-                  </button>
-                </>
-              )}
-              <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
-                {isLast ? 'ОСТАННЄ' : localTimer}
-              </div>
-            </div>
+<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+  {(isHost || isExplainer) && (
+    <>
+      <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
+        ⏸
+      </button>
+      <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
+        🏠
+      </button>
+    </>
+  )}
+  <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
+    {isLast ? 'ОСТАННЄ' : localTimer}
+  </div>
+</div>
           </div>
           
           <div className="game-board" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '20px', overflowY: 'auto' }}>
