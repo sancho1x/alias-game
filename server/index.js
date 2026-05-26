@@ -90,7 +90,6 @@ dbRooms.forEach(r => {
     if (!room.gameState.roundHistory) room.gameState.roundHistory = [];
     
     rooms[r.id] = room;
-});
     if (now - r.lastActive < DB_TIMEOUT) {
         // Якщо кімната ще свіжа (до 2 годин), вантажимо її в оперативку для гри
         if (now - r.lastActive < RAM_TIMEOUT) {
