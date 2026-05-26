@@ -82,7 +82,15 @@ const ROOM_CREATION_COOLDOWN = 60 * 1000; // 60 секунд між створе
 // Завантаження кімнат при старті сервера
 RoomModel.find({}).then(dbRooms => {
   const now = Date.now();
-  dbRooms.forEach(r => {
+dbRooms.forEach(r => {
+    const room = r.toObject();
+    
+    // БЕЗПЕКА: Перевіряємо та ініціалізуємо поля, яких може не бути
+    if (!room.gameState.explainerIndices) room.gameState.explainerIndices = {};
+    if (!room.gameState.roundHistory) room.gameState.roundHistory = [];
+    
+    rooms[r.id] = room;
+});
     if (now - r.lastActive < DB_TIMEOUT) {
         // Якщо кімната ще свіжа (до 2 годин), вантажимо її в оперативку для гри
         if (now - r.lastActive < RAM_TIMEOUT) {
@@ -439,7 +447,10 @@ socket.on('createTeam', ({ roomCode, teamName }) => {
 
       const newTeam = { id: Date.now().toString(), name: teamName, score: 0 };
       room.teams.push(newTeam);
-      room.gameState.explainerIndices[newTeam.id] = 0;
+if (!room.gameState.explainerIndices) {
+    room.gameState.explainerIndices = {};
+}
+room.gameState.explainerIndices[newTeam.id] = 0;
       broadcastRoomUpdate(roomCode);
     }
   });
