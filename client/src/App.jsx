@@ -31,6 +31,7 @@ function App() {
   const [newTeamName, setNewTeamName] = useState('');
   const [localTimer, setLocalTimer] = useState(0);
   const [isConnected, setIsConnected] = useState(socket.connected);
+  const [showLoading, setShowLoading] = useState(false);
   
   const [appError, setAppError] = useState('');
   const errorTimerRef = useRef(null); // Зберігаємо ID таймера
@@ -49,6 +50,19 @@ function App() {
 
   const currentPlayerId = isTwitchAuth ? `twitch_${twitchLogin}` : basePlayerId;
 
+ // 🔥 НОВИЙ КОД: Захист від мерехтіння екрану завантаження
+  useEffect(() => {
+    let timeout;
+    if (!isConnected && showLoading) {
+      // Чекаємо 800 мілісекунд. Якщо за цей час не підключились - показуємо крутилку
+      timeout = setTimeout(() => setShowLoading(true), 800);
+    } else {
+      // Якщо підключились швидко - ховаємо миттєво
+      setShowLoading(false);
+    }
+    return () => clearTimeout(timeout);
+  }, [isConnected]); 
+  
 useEffect(() => {
     // 🔥 НОВИЙ КОД: Шукаємо код кімнати в URL або в пам'яті
     const searchParams = new URLSearchParams(window.location.search);
