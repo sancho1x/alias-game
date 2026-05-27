@@ -1005,11 +1005,11 @@ const renderPlayersList = (compact = false) => (
     onClick={(e) => {
       e.stopPropagation();
       // Додав попередження в сам текст вікна
-      const newName = window.prompt('Введіть нову назву команди (макс. 25 символів):', t.name);
+      const newName = window.prompt('Введіть нову назву команди (макс. 20 символів):', t.name);
       
       if (newName !== null) { // Якщо не натиснули Cancel
         // Відрізаємо пробіли по краях і беремо тільки перші 20 символів
-        const safeName = newName.trim().substring(0, 25); 
+        const safeName = newName.trim().substring(0, 20); 
         
         if (safeName && safeName !== t.name) {
            socket.emit('renameTeam', { roomCode: room.id, teamId: t.id, newName: safeName });
