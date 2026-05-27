@@ -18,8 +18,8 @@
 }
 
 body, html, #root {
-  height: 100%;
   width: 100%;
+  height: 100dvh; /* 🔥 Змінили з 100% на 100dvh */
   background-color: var(--bg-dark);
   color: var(--text-main);
   font-family: 'Segoe UI', Roboto, sans-serif;
