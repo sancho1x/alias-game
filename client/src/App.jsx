@@ -640,17 +640,17 @@ const renderPlayersList = (compact = false) => (
 <div className="app-wrapper game-mode" style={{ height: '98dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
 <div className="game-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
             
-            {/* ЛІВА ЧАСТИНА: Гнучка (flex: 1 та minWidth: 0 дозволяють їй розумно стискатися) */}
-            <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem', flex: 1, minWidth: 0 }}>
-              <span className="team-name" style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {/* ЛІВА ЧАСТИНА: Додали flexWrap: 'wrap', щоб рахунок міг стрибати вниз */}
+            <div className="team-info-top" style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 15px', alignItems: 'center', fontSize: '1.2rem', flex: 1, minWidth: 0 }}>
+              <span className="team-name" style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                 {currentTeam?.name}
               </span>
-              <span className="team-live-score" style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <span className="team-live-score" style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0, fontSize: '1.1rem' }}>
                 Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
               </span>
             </div>
             
-            {/* ПРАВА ЧАСТИНА: Жорстка (flexShrink: 0 забороняє кнопкам і таймеру зминатися) */}
+            {/* ПРАВА ЧАСТИНА: Залишається жорсткою */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, paddingLeft: '10px' }}>
               {(isHost || isExplainer) && (
                 <>
@@ -662,7 +662,6 @@ const renderPlayersList = (compact = false) => (
                   </button>
                 </>
               )}
-              {/* Таймер тепер не треба обрізати, він завжди матиме своє місце */}
               <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}>
                 {isLast ? 'ОСТАННЄ' : localTimer}
               </div>
