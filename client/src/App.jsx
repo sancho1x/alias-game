@@ -642,7 +642,7 @@ const renderPlayersList = (compact = false) => (
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
               <span className="team-name" style={{ 
                 fontWeight: 'bold', 
-                maxWidth: '100px', 
+                maxWidth: '50px', 
                 whiteSpace: 'nowrap', 
                 overflow: 'hidden', 
                 textOverflow: 'ellipsis', 
@@ -667,7 +667,7 @@ const renderPlayersList = (compact = false) => (
       </button>
     </>
   )}
-  <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
+  <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block' }}>
     {isLast ? 'ОСТАННЄ' : localTimer}
   </div>
 </div>
@@ -981,7 +981,7 @@ const renderPlayersList = (compact = false) => (
             </div>
             
             <div className="input-group inline" style={{ marginBottom: '15px', marginTop: '15px' }}>
-              <input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} disabled={isGamePausedInLobby} />
+              <input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} maxLength={25} disabled={isGamePausedInLobby} />
               <button onClick={handleCreateTeam} disabled={isGamePausedInLobby}>+</button>
             </div>
             
