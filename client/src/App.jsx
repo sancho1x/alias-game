@@ -697,23 +697,23 @@ const renderPlayersList = (compact = false) => (
                   <button className="btn-correct" onClick={() => socket.emit(isLast ? 'lastWordResult' : 'nextWord', { roomCode: room.id, isCorrect: true })}>Вгадали (+1)</button>
                 </div>
               </>
-            ) : (
-            <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), textAlign: 'center', marginBottom: '20px' }}>
-                  {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
-                </h1>
-                    <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
-                  {room.gameState.roundHistory.map((item, idx) => (
-                    <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
-                  ))}
-                </div>
+             ) : (
+<div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+              <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), textAlign: 'center', marginBottom: '20px' }}>
+                {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
+              </h1>
+              <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
+                {room.gameState.roundHistory.map((item, idx) => (
+                  <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      </>
-    );
-  }
+      </div>
+    </>
+  );
+}
 
   if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
     const isGameOver = room.gameState.status === 'game_over';
