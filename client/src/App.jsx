@@ -638,7 +638,24 @@ const renderPlayersList = (compact = false) => (
       <>
         <ErrorToast />
         <div className="app-wrapper game-mode" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="app-wrapper game-mode" style={{ height: '98dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
           <div className="game-header">
+            <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
+              <span className="team-name" style={{ 
+                fontWeight: 'bold', 
+                maxWidth: '120px', 
+                whiteSpace: 'nowrap', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                display: 'inline-block', 
+                verticalAlign: 'bottom' 
+              }}>
+                {currentTeam?.name}
+              </span>
+              <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
+                Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
+              </span>
+            </div>
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
               <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
               <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
@@ -681,11 +698,16 @@ const renderPlayersList = (compact = false) => (
                 </div>
               </>
             ) : (
-              <div className="guesser-view">
-                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
+{/* Сюди додали flex, justify-center та items-center */}
+            <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+                
+                {/* Додали textAlign: 'center', щоб довгий текст не з'їжджав вбік */}
+                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), textAlign: 'center', marginBottom: '20px' }}>
                   {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
                 </h1>
-                <div className="word-history">
+                
+                {/* Додали центрування для самих слів (пігулок) */}
+                <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
                   {room.gameState.roundHistory.map((item, idx) => (
                     <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
                   ))}
