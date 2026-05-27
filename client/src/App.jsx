@@ -997,16 +997,23 @@ const renderPlayersList = (compact = false) => (
 <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
 {t.name} 
 
-{/* 🔥 НОВИЙ КОД: Кнопка перейменування команди */}
+{/* 🔥 ОНОВЛЕНИЙ КОД: Кнопка перейменування команди з лімітом */}
 {isHost && !isGamePausedInLobby && (
   <span 
-    style={{ fontSize: '0.9rem', marginLeft: '5px', opacity: '0.7' }} 
+    style={{ fontSize: '0.9rem', marginLeft: '5px', opacity: '0.7', cursor: 'pointer' }} 
     title="Перейменувати команду"
     onClick={(e) => {
-      e.stopPropagation(); // Щоб не відкривалась історія при кліку на олівець
-      const newName = window.prompt('Введіть нову назву команди:', t.name);
-      if (newName && newName.trim() && newName.trim() !== t.name) {
-         socket.emit('renameTeam', { roomCode: room.id, teamId: t.id, newName: newName.trim() });
+      e.stopPropagation();
+      // Додав попередження в сам текст вікна
+      const newName = window.prompt('Введіть нову назву команди (макс. 25 символів):', t.name);
+      
+      if (newName !== null) { // Якщо не натиснули Cancel
+        // Відрізаємо пробіли по краях і беремо тільки перші 20 символів
+        const safeName = newName.trim().substring(0, 25); 
+        
+        if (safeName && safeName !== t.name) {
+           socket.emit('renameTeam', { roomCode: room.id, teamId: t.id, newName: safeName });
+        }
       }
     }}
   >
