@@ -42,7 +42,6 @@ body, html, #root {
   overflow-y: auto; 
   -webkit-overflow-scrolling: touch; /* Робить скрол на телефонах (особливо iOS) м'яким та інерційним */
 }
-}
 
 .container {
   background-color: var(--panel-bg);
