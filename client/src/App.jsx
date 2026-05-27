@@ -698,16 +698,11 @@ const renderPlayersList = (compact = false) => (
                 </div>
               </>
             ) : (
-{/* Сюди додали flex, justify-center та items-center */}
             <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-                
-                {/* Додали textAlign: 'center', щоб довгий текст не з'їжджав вбік */}
                 <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), textAlign: 'center', marginBottom: '20px' }}>
                   {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
                 </h1>
-                
-                {/* Додали центрування для самих слів (пігулок) */}
-                <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
+                    <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
                   {room.gameState.roundHistory.map((item, idx) => (
                     <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
                   ))}
