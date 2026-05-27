@@ -640,17 +640,9 @@ const renderPlayersList = (compact = false) => (
 <div className="app-wrapper game-mode" style={{ height: '98dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
           <div className="game-header">
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
-              <span className="team-name" style={{ 
-                fontWeight: 'bold', 
-                maxWidth: '50px', 
-                whiteSpace: 'nowrap', 
-                overflow: 'hidden', 
-                textOverflow: 'ellipsis', 
-                display: 'inline-block', 
-                verticalAlign: 'bottom' 
-              }}>
-                {currentTeam?.name}
-              </span>
+<span className="team-name ellipsis-text" style={{ fontWeight: 'bold', maxWidth: '75px' }}>
+  {currentTeam?.name}
+</span>
               <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
                 Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
               </span>
