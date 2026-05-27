@@ -39,6 +39,9 @@ body, html, #root {
   flex-direction: column;
   padding: 15px;
   box-sizing: border-box; /* 🔥 НАЙГОЛОВНІШЕ: тепер падінги не будуть роздувати висоту екрана! */
+  overflow-y: auto; 
+  -webkit-overflow-scrolling: touch; /* Робить скрол на телефонах (особливо iOS) м'яким та інерційним */
+}
 }
 
 .container {
