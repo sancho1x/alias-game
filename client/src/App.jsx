@@ -637,7 +637,7 @@ const renderPlayersList = (compact = false) => (
     return (
       <>
         <ErrorToast />
-<div className="app-wrapper game-mode" style={{ height: '98dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
+<div className="app-wrapper game-mode" style={{ height: '95dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
 <div className="game-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
             
             {/* ЛІВА ЧАСТИНА: Додали flexWrap: 'wrap', щоб рахунок міг стрибати вниз */}
@@ -687,16 +687,22 @@ const renderPlayersList = (compact = false) => (
                 </div>
               </>
             ) : (
-              <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
-                  {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
-                </h1>
-                <div className="word-history">
-                  {room.gameState.roundHistory.map((item, idx) => (
-                    <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
-                  ))}
-                </div>
+<div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', width: '100%', boxSizing: 'border-box' }}>
+              <h1 style={{ 
+                color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), 
+                textAlign: 'center', 
+                marginBottom: '20px',
+                maxWidth: '100%',           // 🔥 Забороняємо вилазити за межі екрана
+                wordBreak: 'break-word'     // 🔥 Дозволяємо розривати суцільні довгі слова
+              }}>
+                {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
+              </h1>
+              <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
+                {room.gameState.roundHistory.map((item, idx) => (
+                  <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
+                ))}
               </div>
+            </div>
             )}
           </div>
         </div>
