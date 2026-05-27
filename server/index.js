@@ -574,28 +574,40 @@ socket.on('resetGame', ({ roomCode }) => {
   });
     
 const getRandomWord = (room) => {
-    // 1. Визначаємо пул слів
+    // 1. Отримуємо пул слів (кастомний або стандартний)
     let pool = room.settings.dictType === 'custom' 
         ? (room.settings.customWords || [])
         : (dictionaries[room.settings.dictType] || dictionaries.easy);
 
     if (!pool || pool.length === 0) return "ПОМИЛКА_СЛОВНИКА";
 
-    // 2. БЕРЕМО ІСТОРІЮ ПРЯМО З ROOM (це те, що ти відображаєш в App.jsx)
-    // fullHistory — це масив раундів, кожен з яких має масив слів
-    const usedWords = room.gameState.fullHistory.flatMap(round => 
-        round.words.map(w => w.word)
+    // Прибираємо випадкові дублікати в самому словнику (на випадок, якщо хтось ввів двічі)
+    const uniquePool = [...new Set(pool)];
+
+    // 2. Беремо ВСІ слова, які БУЛИ в минулих раундах
+    const pastWords = (room.gameState.fullHistory || []).flatMap(turn => 
+        (turn.words || []).map(w => w.word)
     );
-    
-    // 3. Фільтруємо
-    let availableWords = pool.filter(w => !usedWords.includes(w));
-    
-    // 4. Якщо слова скінчилися — скидаємо (дозволяємо почати спочатку)
+
+    // 3. Беремо ВСІ слова, які ВЖЕ випали в поточному раунді (під час таймера)
+    const currentRoundWords = (room.gameState.roundHistory || []).map(w => w.word);
+
+    // 4. Беремо слово, яке прямо зараз висить на екрані
+    const currentActiveWord = room.gameState.currentWord ? [room.gameState.currentWord] : [];
+
+    // 5. Збираємо всі використані слова до купи
+    const allUsedWords = [...pastWords, ...currentRoundWords, ...currentActiveWord];
+
+    // 6. Фільтруємо наш словник: залишаємо тільки ті, яких ЩЕ НЕ БУЛО в грі
+    let availableWords = uniquePool.filter(w => !allUsedWords.includes(w));
+
+    // 7. Якщо унікальні слова закінчилися (наприклад, словник на 50 слів, а ми витягуємо 51-ше)
     if (availableWords.length === 0) {
-        availableWords = pool;
+        // Дозволяємо словам піти по другому колу, щоб гра не зламалася
+        availableWords = uniquePool; 
     }
-    
-    // 5. Обираємо випадкове
+
+    // 8. Видаємо випадкове слово з доступних
     const word = availableWords[Math.floor(Math.random() * availableWords.length)];
     return word;
 };
