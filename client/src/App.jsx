@@ -508,7 +508,7 @@ const renderPlayersList = (compact = false) => (
             
 {/* 🔥 НОВИЙ КОД: Блок з кнопками передачі хоста, скидання ніка та кіку */}
             {isHost && p.playerId !== currentPlayerId && !compact && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
                   <button 
                     onClick={() => socket.emit('resetPlayerName', { roomCode: room.id, targetPlayerId: p.playerId })} 
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}
@@ -606,43 +606,71 @@ const renderPlayersList = (compact = false) => (
     const canResume = isHost || room.gameState.currentExplainerId === socket.id;
     return (
       <>
-<ErrorToast />
-        <div className="app-wrapper game-mode" style={{ height: '95dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
+        <ErrorToast />
+        <div className="app-wrapper game-mode" style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '4rem', color: 'var(--accent-yellow)', marginBottom: '30px' }}>ПАУЗА</h1>
+          {room.gameState.autoPausedBySystem && (
+             <p style={{ color: 'var(--accent-red)', marginBottom: '20px', textAlign: 'center' }}>Один з активних гравців втратив з'єднання!</p>
+          )}
+          {canResume ? (
+            <div style={{ display: 'flex', gap: '15px', flexDirection: 'column' }}>
+              <button className="btn-correct" style={{ padding: '20px 40px', fontSize: '1.5rem' }} onClick={() => socket.emit('resumeGame', { roomCode: room.id, action: 'resume' })}>
+                Продовжити гру
+              </button>
+              <button className="ghost-btn" style={{ padding: '15px' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
+                В лобі (Таймер зупиниться)
+              </button>
+            </div>
+          ) : (
+            <p className="muted" style={{ fontSize: '1.2rem' }}>Очікуємо, поки ведучий зніме гру з паузи...</p>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
+    const isExplainer = room.gameState.currentExplainerId === socket.id;
+    const isMyTeamPlaying = room.gameState.currentTeamId === myPlayerInfo?.teamId;
+    const isLast = room.gameState.status === 'last_word';
+    
+    return (
+      <>
+        <ErrorToast />
+        <div className="app-wrapper game-mode" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="game-header">
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
-              <span className="team-name" style={{ fontWeight: 'bold', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', verticalAlign: 'bottom' }}>
-                {currentTeam?.name}
-              </span>
+              <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
               <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
                 Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
               </span>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {(isHost || isExplainer) && (
-                <>
-                  <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
-                    ⏸
-                  </button>
-                  <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
-                    🏠
-                  </button>
-                </>
-              )}
-              <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
-                {isLast ? 'ОСТАННЄ' : localTimer}
-              </div>
-            </div>
+<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+  {(isHost || isExplainer) && (
+    <>
+      <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
+        ⏸
+      </button>
+      <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
+        🏠
+      </button>
+    </>
+  )}
+  <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
+    {isLast ? 'ОСТАННЄ' : localTimer}
+  </div>
+</div>
           </div>
           
           <div className="game-board" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '20px', overflowY: 'auto' }}>
             {isExplainer ? (
               <>
                 <div className="word-container" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-                  <h1 className="main-word" style={{ margin: 0, wordBreak: 'break-word', textAlign: 'center' }}>
-                    {room.gameState.currentWord}
-                  </h1>
-                </div>
+  <h1 className="main-word" style={{ margin: 0, wordBreak: 'break-word', textAlign: 'center' }}>
+    {room.gameState.currentWord}
+  </h1>
+</div>
                 <div className="action-buttons">
                   {!isLast ? (
                     <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>
@@ -653,11 +681,11 @@ const renderPlayersList = (compact = false) => (
                 </div>
               </>
             ) : (
-              <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), textAlign: 'center', marginBottom: '20px' }}>
+              <div className="guesser-view">
+                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
                   {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
                 </h1>
-                <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
+                <div className="word-history">
                   {room.gameState.roundHistory.map((item, idx) => (
                     <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
                   ))}
