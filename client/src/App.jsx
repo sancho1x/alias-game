@@ -992,44 +992,41 @@ const renderPlayersList = (compact = false) => (
                 return (
                   <div key={t.id} className="team-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '15px' }}>
-                        
-                        {/* ЛІВА ЧАСТИНА: Додали flex: 1 та minWidth: 0, щоб блок міг "стискатись" */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
-                          
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
                           <span 
-                            style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none', maxWidth: '100%' }}
+                            style={{ fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none' }}
                             onClick={() => setExpandedTeams(prev => ({...prev, [t.id]: !prev[t.id]}))}
                             title="Натисни, щоб переглянути історію раундів"
                           >
-                            {/* Стрілочка: flexShrink: 0 (забороняємо зминатись) */}
-                            <span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}>▶</span>
-                            
-                            {/* 🔥 МАГІЯ ТУТ: Обгортаємо назву, вона забирає весь вільний простір, але обрізається, якщо місця немає */}
-                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
-                              {t.name}
-                            </span>
+<span style={{ fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+{t.name} 
 
-                            {/* Кнопка перейменування (олівець): flexShrink: 0 */}
-                            {isHost && !isGamePausedInLobby && (
-                              <span 
-                                style={{ fontSize: '0.9rem', opacity: '0.7', flexShrink: 0 }} 
-                                title="Перейменувати команду"
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Щоб не відкривалась історія при кліку на олівець
-                                  const newName = window.prompt('Введіть нову назву команди:', t.name);
-                                  if (newName && newName.trim() && newName.trim() !== t.name) {
-                                     socket.emit('renameTeam', { roomCode: room.id, teamId: t.id, newName: newName.trim() });
-                                  }
-                                }}
-                              >
-                                ✏️
-                              </span>
-                            )}
+{/* 🔥 ОНОВЛЕНИЙ КОД: Кнопка перейменування команди з лімітом */}
+{isHost && !isGamePausedInLobby && (
+  <span 
+    style={{ fontSize: '0.9rem', marginLeft: '5px', opacity: '0.7', cursor: 'pointer' }} 
+    title="Перейменувати команду"
+    onClick={(e) => {
+      e.stopPropagation();
+      // Додав попередження в сам текст вікна
+      const newName = window.prompt('Введіть нову назву команди (макс. 20 символів):', t.name);
+      
+      if (newName !== null) { // Якщо не натиснули Cancel
+        // Відрізаємо пробіли по краях і беремо тільки перші 20 символів
+        const safeName = newName.trim().substring(0, 20); 
+        
+        if (safeName && safeName !== t.name) {
+           socket.emit('renameTeam', { roomCode: room.id, teamId: t.id, newName: safeName });
+        }
+      }
+    }}
+  >
+    ✏️
+  </span>
+)}
 
-                            {/* Лічильник гравців: flexShrink: 0 */}
-                            <span className="muted" style={{ fontWeight: 'normal', flexShrink: 0 }}>({teamPlayers.length}/2)</span>
+<span className="muted" style={{ fontWeight: 'normal', marginLeft: '8px' }}>({teamPlayers.length}/2)</span>
                           </span>
-                          
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '25px' }}>
                             {isHost && <button className="score-adjust" onClick={() => handleAdjustScore(t.id, -1)}>-</button>}
                             <strong className="score-pill">{t.score} балів</strong>
@@ -1037,8 +1034,8 @@ const renderPlayersList = (compact = false) => (
                           </div>
                         </div>
 
-                        {/* ПРАВА ЧАСТИНА (Кнопки "Вийти", "Увійти", "❌") залишається твоя без змін */}
-                        <div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                        {/* 🔥 НОВИЙ КОД: Кнопка "Вийти", якщо гравець у цій команді */}
+<div className="team-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
   {amIInThisTeam ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
       <span className="muted" style={{ fontWeight: 'bold', color: 'var(--accent-green)', whiteSpace: 'nowrap' }}>Твоя команда</span>
