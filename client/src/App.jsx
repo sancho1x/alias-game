@@ -691,7 +691,7 @@ const renderPlayersList = (compact = false) => (
                 </div>
               </>
             ) : (
-              <div className="guesser-view">
+              <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
                 <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
                   {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
                 </h1>
