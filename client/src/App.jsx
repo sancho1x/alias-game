@@ -636,41 +636,43 @@ const renderPlayersList = (compact = false) => (
     
     return (
       <>
-        <ErrorToast />
-        <div className="app-wrapper game-mode" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+<ErrorToast />
+        <div className="app-wrapper game-mode" style={{ height: '95dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
           <div className="game-header">
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
-              <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
+              <span className="team-name" style={{ fontWeight: 'bold', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', verticalAlign: 'bottom' }}>
+                {currentTeam?.name}
+              </span>
               <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
                 Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
               </span>
             </div>
             
-<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-  {(isHost || isExplainer) && (
-    <>
-      <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
-        ⏸
-      </button>
-      <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
-        🏠
-      </button>
-    </>
-  )}
-  <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
-    {isLast ? 'ОСТАННЄ' : localTimer}
-  </div>
-</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {(isHost || isExplainer) && (
+                <>
+                  <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('pauseGame', { roomCode: room.id })}>
+                    ⏸
+                  </button>
+                  <button className="ghost-btn" style={{ padding: '8px 12px', fontSize: '1rem' }} onClick={() => socket.emit('returnToLobby', { roomCode: room.id })}>
+                    🏠
+                  </button>
+                </>
+              )}
+              <div className={`timer-display ${isLast ? 'timer-warning' : (localTimer < 10 ? 'timer-danger' : '')}`} style={{ marginLeft: '10px' }}>
+                {isLast ? 'ОСТАННЄ' : localTimer}
+              </div>
+            </div>
           </div>
           
           <div className="game-board" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '20px', overflowY: 'auto' }}>
             {isExplainer ? (
               <>
                 <div className="word-container" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-  <h1 className="main-word" style={{ margin: 0, wordBreak: 'break-word', textAlign: 'center' }}>
-    {room.gameState.currentWord}
-  </h1>
-</div>
+                  <h1 className="main-word" style={{ margin: 0, wordBreak: 'break-word', textAlign: 'center' }}>
+                    {room.gameState.currentWord}
+                  </h1>
+                </div>
                 <div className="action-buttons">
                   {!isLast ? (
                     <button className="btn-skip" onClick={() => socket.emit('nextWord', { roomCode: room.id, isCorrect: false })}>Скіп (-1)</button>
@@ -681,11 +683,11 @@ const renderPlayersList = (compact = false) => (
                 </div>
               </>
             ) : (
-              <div className="guesser-view">
-                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be') }}>
-                  {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
+              <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+                <h1 style={{ color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), textAlign: 'center', marginBottom: '20px' }}>
+                  {isMyTeamPlaying ? 'Вгадуйте!' : `Grad є команда: ${currentTeam?.name}`}
                 </h1>
-                <div className="word-history">
+                <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
                   {room.gameState.roundHistory.map((item, idx) => (
                     <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
                   ))}
@@ -697,6 +699,7 @@ const renderPlayersList = (compact = false) => (
       </>
     );
   }
+}
 
   if (room.gameState.status === 'turn_ended' || room.gameState.status === 'game_over') {
     const isGameOver = room.gameState.status === 'game_over';
