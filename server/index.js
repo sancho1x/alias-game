@@ -574,30 +574,29 @@ socket.on('resetGame', ({ roomCode }) => {
   });
     
 const getRandomWord = (room) => {
+    // 1. Визначаємо пул слів
     let pool = room.settings.dictType === 'custom' 
         ? (room.settings.customWords || [])
         : (dictionaries[room.settings.dictType] || dictionaries.easy);
 
     if (!pool || pool.length === 0) return "ПОМИЛКА_СЛОВНИКА";
 
-    // 1. Беремо всі слова, які БУЛИ в історії, щоб не повторювати їх
-    // fullHistory - це масив об'єктів, де кожен об'єкт має властивість 'words' (масив)
-    const usedWords = room.gameState.fullHistory.flatMap(h => h.words.map(w => w.word));
+    // 2. БЕРЕМО ІСТОРІЮ ПРЯМО З ROOM (це те, що ти відображаєш в App.jsx)
+    // fullHistory — це масив раундів, кожен з яких має масив слів
+    const usedWords = room.gameState.fullHistory.flatMap(round => 
+        round.words.map(w => w.word)
+    );
     
-    // 2. Фільтруємо пул
+    // 3. Фільтруємо
     let availableWords = pool.filter(w => !usedWords.includes(w));
     
-    // 3. Якщо слова закінчилися — що робити?
+    // 4. Якщо слова скінчилися — скидаємо (дозволяємо почати спочатку)
     if (availableWords.length === 0) {
-        // ВАРІАНТ А: Дозволити використання слів по колу, але попередити систему
-        // Не чіпаємо fullHistory, просто скидаємо фільтр
-        availableWords = pool; 
+        availableWords = pool;
     }
     
+    // 5. Обираємо випадкове
     const word = availableWords[Math.floor(Math.random() * availableWords.length)];
-    
-    // 4. Повертаємо слово. Сервер (у коді, де викликається ця функція)
-    // має сам додати це слово в gameState.roundHistory, коли раунд закінчиться.
     return word;
 };
 
