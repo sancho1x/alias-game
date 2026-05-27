@@ -638,24 +638,7 @@ const renderPlayersList = (compact = false) => (
       <>
         <ErrorToast />
         <div className="app-wrapper game-mode" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div className="app-wrapper game-mode" style={{ height: '98dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
           <div className="game-header">
-            <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
-              <span className="team-name" style={{ 
-                fontWeight: 'bold', 
-                maxWidth: '120px', 
-                whiteSpace: 'nowrap', 
-                overflow: 'hidden', 
-                textOverflow: 'ellipsis', 
-                display: 'inline-block', 
-                verticalAlign: 'bottom' 
-              }}>
-                {currentTeam?.name}
-              </span>
-              <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
-                Рахунок: <strong style={{ color: 'var(--accent-green)' }}>{currentTeam?.score}</strong>
-              </span>
-            </div>
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
               <span className="team-name" style={{ fontWeight: 'bold' }}>{currentTeam?.name}</span>
               <span className="team-live-score" style={{ color: 'var(--text-muted)' }}>
