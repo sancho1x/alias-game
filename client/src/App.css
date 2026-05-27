@@ -268,3 +268,11 @@ li { padding: 12px 15px; background-color: var(--bg-dark); margin-bottom: 8px; b
 .btn-delete:hover {
   background-color: rgba(255, 71, 87, 0.3);
 }
+
+.ellipsis-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: bottom;
+}
