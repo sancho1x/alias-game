@@ -642,7 +642,7 @@ const renderPlayersList = (compact = false) => (
             <div className="team-info-top" style={{ display: 'flex', gap: '15px', alignItems: 'center', fontSize: '1.2rem' }}>
               <span className="team-name" style={{ 
                 fontWeight: 'bold', 
-                maxWidth: '120px', 
+                maxWidth: '100px', 
                 whiteSpace: 'nowrap', 
                 overflow: 'hidden', 
                 textOverflow: 'ellipsis', 
