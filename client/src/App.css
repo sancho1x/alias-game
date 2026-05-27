@@ -19,19 +19,26 @@
 
 body, html, #root {
   width: 100%;
-  height: 100%;
+  height: 100dvh; /* 🔥 Змінили з 100% на 100dvh */
   background-color: var(--bg-dark);
   color: var(--text-main);
   font-family: 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
+  overflow: hidden; /* 🔥 Було overflow-x, тепер блокуємо будь-який скрол */
+  
+  /* 🔥 Жорстка фіксація екрана (вбиває мобільний скрол браузера) */
+  position: fixed;
+  top: 0;
+  left: 0;
+  overscroll-behavior: none; 
 }
 
 .app-wrapper {
-  min-height: 100vh;
+  height: 100%; /* 🔥 Змінили min-height: 100vh на жорсткі 100% від зафіксованого body */
   width: 100%;
   display: flex;
   flex-direction: column;
   padding: 15px;
+  box-sizing: border-box; /* 🔥 НАЙГОЛОВНІШЕ: тепер падінги не будуть роздувати висоту екрана! */
 }
 
 .container {
