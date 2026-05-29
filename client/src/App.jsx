@@ -629,7 +629,7 @@ const renderPlayersList = (compact = false) => (
     );
   }
 
-  if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
+if (room.gameState.status === 'playing' || room.gameState.status === 'last_word') {
     const isExplainer = room.gameState.currentExplainerId === socket.id;
     const isMyTeamPlaying = room.gameState.currentTeamId === myPlayerInfo?.teamId;
     const isLast = room.gameState.status === 'last_word';
@@ -637,8 +637,22 @@ const renderPlayersList = (compact = false) => (
     return (
       <>
         <ErrorToast />
-<div className="app-wrapper game-mode" style={{ height: '95dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
-<div className="game-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+
+        {/* 🔥 НОВИЙ КОД: Плашка втрати з'єднання (показується тільки коли немає інтернету) */}
+        {!isConnected && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0,
+            backgroundColor: 'var(--accent-red)', color: 'white',
+            padding: '12px', textAlign: 'center', fontWeight: 'bold', zIndex: 9999,
+            boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+            animation: 'pulse 2s infinite'
+          }}>
+            🔴 Втрачено з'єднання з сервером. Очікування мережі...
+          </div>
+        )}
+
+        <div className="app-wrapper game-mode" style={{ height: '95dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
+          <div className="game-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
             
             {/* ЛІВА ЧАСТИНА: Додали flexWrap: 'wrap', щоб рахунок міг стрибати вниз */}
             <div className="team-info-top" style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 15px', alignItems: 'center', fontSize: '1.2rem', flex: 1, minWidth: 0 }}>
