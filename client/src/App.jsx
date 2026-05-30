@@ -997,7 +997,7 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
             </div>
             
             <div className="input-group inline" style={{ marginBottom: '15px', marginTop: '15px' }}>
-              <input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} maxLength={25} disabled={isGamePausedInLobby} />
+              <input type="text" placeholder="Назва команди" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} maxLength={30} disabled={isGamePausedInLobby} />
               <button onClick={handleCreateTeam} disabled={isGamePausedInLobby}>+</button>
             </div>
             
