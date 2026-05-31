@@ -633,6 +633,11 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
     const isExplainer = room.gameState.currentExplainerId === socket.id;
     const isMyTeamPlaying = room.gameState.currentTeamId === myPlayerInfo?.teamId;
     const isLast = room.gameState.status === 'last_word';
+    const activeTeam = room.teams.find(t => t.id === room.gameState.currentTeamId);
+    const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
+    const activeExplainer = room.players.find(p => p.id === room.gameState.currentExplainerId);
+    const expIdx = teamPlayers.findIndex(p => p.id === activeExplainer?.id);
+    const activeGuesser = teamPlayers[(expIdx + 1) % (teamPlayers.length || 1)];
     
     return (
       <>
@@ -702,15 +707,22 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
               </>
             ) : (
 <div className="guesser-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', width: '100%', boxSizing: 'border-box' }}>
-              <h1 style={{ 
-                color: isLast ? '#ffc312' : (isMyTeamPlaying ? '#ff4757' : '#a4b0be'), 
-                textAlign: 'center', 
-                marginBottom: '20px',
-                maxWidth: '100%',           // 🔥 Забороняємо вилазити за межі екрана
-                wordBreak: 'break-word'     // 🔥 Дозволяємо розривати суцільні довгі слова
-              }}>
-                {isMyTeamPlaying ? 'Вгадуйте!' : `Грає команда: ${currentTeam?.name}`}
-              </h1>
+              
+              {isMyTeamPlaying ? (
+                <h1 style={{ color: isLast ? '#ffc312' : '#ff4757', textAlign: 'center', marginBottom: '20px', maxWidth: '100%', wordBreak: 'break-word' }}>
+                  Вгадуйте!
+                </h1>
+              ) : (
+                /* 🔥 ТОЙ САМИЙ ЖОВТИЙ БЛОК ДЛЯ ГЛЯДАЧІВ */
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '20px 40px', borderRadius: '15px', textAlign: 'center', marginBottom: '20px', border: '1px dashed var(--accent-yellow)' }}>
+                    <h3 style={{ color: 'var(--accent-green)', marginBottom: '10px', fontSize: '1.5rem' }}>{activeTeam?.name}</h3>
+                    <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
+                        Пояснює: <strong style={{ color: 'white' }}>{activeExplainer?.name || '...'}</strong><br/>
+                        Відгадує: <strong style={{ color: 'white' }}>{activeGuesser?.name || '...'}</strong>
+                    </p>
+                </div>
+              )}
+
               <div className="word-history" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
                 {room.gameState.roundHistory.map((item, idx) => (
                   <span key={idx} className={`history-pill ${item.status}`}>{item.word}</span>
@@ -755,6 +767,24 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
                 Раунд {currentRoundNum} з {turnsPerLap}, Коло {currentLapNum} / {totalLapsDisplay}
             </p>
 
+{/* 🔥 БЛОК СТАТИСТИКИ СЛОВНИКА */}
+            {room.gameState?.dictStats && (
+              <div style={{
+                backgroundColor: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px',
+                textAlign: 'center', marginBottom: '15px', border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                {room.gameState.dictStats.lap > 1 ? (
+                  <span style={{ color: 'var(--accent-yellow)' }}>
+                    🔄 Словник пішов по {room.gameState.dictStats.lap}-му колу (граємо всі {room.gameState.dictStats.total} слів заново)
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    📚 Слів у словнику: <strong style={{ color: 'var(--accent-green)' }}>{room.gameState.dictStats.left}</strong> / {room.gameState.dictStats.total}
+                  </span>
+                )}
+              </div>
+            )}
+            
             {canEditWords && !isGameOver && (
               <p className="muted" style={{ textAlign: 'center', marginBottom: '15px' }}>Натискай на слова, щоб змінити їх статус (Зелений: +1, Сірий: 0, Червоний: -1)</p>
             )}
@@ -869,6 +899,24 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
                   Пояснює: <strong style={{ color: 'white' }}>{lobbyNextExplainer?.name || '...'}</strong> <br/>
                   Відгадує: <strong style={{ color: 'white' }}>{lobbyNextGuesser?.name || '...'}</strong>
                 </p>
+              </div>
+          )}
+
+{/* 🔥 БЛОК СТАТИСТИКИ СЛОВНИКА В ЛОБІ */}
+          {room.gameState?.dictStats && !isGamePausedInLobby && (
+              <div style={{
+                backgroundColor: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px',
+                textAlign: 'center', marginBottom: '15px', border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                {room.gameState.dictStats.lap > 1 ? (
+                  <span style={{ color: 'var(--accent-yellow)' }}>
+                    🔄 Словник пішов по {room.gameState.dictStats.lap}-му колу (всі {room.gameState.dictStats.total} слів заново)
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    📚 Залишилось унікальних слів: <strong style={{ color: 'var(--accent-green)' }}>{room.gameState.dictStats.left}</strong> з {room.gameState.dictStats.total}
+                  </span>
+                )}
               </div>
           )}
           
