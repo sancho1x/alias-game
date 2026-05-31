@@ -574,40 +574,49 @@ socket.on('resetGame', ({ roomCode }) => {
   });
     
 const getRandomWord = (room) => {
-    // 1. Отримуємо пул слів (кастомний або стандартний)
+    // 1. Отримуємо пул слів
     let pool = room.settings.dictType === 'custom' 
         ? (room.settings.customWords || [])
         : (dictionaries[room.settings.dictType] || dictionaries.easy);
 
     if (!pool || pool.length === 0) return "ПОМИЛКА_СЛОВНИКА";
 
-    // Прибираємо випадкові дублікати в самому словнику (на випадок, якщо хтось ввів двічі)
+    // Прибираємо випадкові дублікати в самому словнику
     const uniquePool = [...new Set(pool)];
+    const totalUnique = uniquePool.length;
 
-    // 2. Беремо ВСІ слова, які БУЛИ в минулих раундах
+    // 2. Беремо ВСІ слова, які БУЛИ в минулих раундах і зараз
     const pastWords = (room.gameState.fullHistory || []).flatMap(turn => 
         (turn.words || []).map(w => w.word)
     );
-
-    // 3. Беремо ВСІ слова, які ВЖЕ випали в поточному раунді (під час таймера)
     const currentRoundWords = (room.gameState.roundHistory || []).map(w => w.word);
-
-    // 4. Беремо слово, яке прямо зараз висить на екрані
     const currentActiveWord = room.gameState.currentWord ? [room.gameState.currentWord] : [];
 
-    // 5. Збираємо всі використані слова до купи
     const allUsedWords = [...pastWords, ...currentRoundWords, ...currentActiveWord];
 
-    // 6. Фільтруємо наш словник: залишаємо тільки ті, яких ЩЕ НЕ БУЛО в грі
-    let availableWords = uniquePool.filter(w => !allUsedWords.includes(w));
+    // 🔥 НОВЕ: Математика кіл (Laps)
+    // Визначаємо, на якому ми зараз колі (1, 2, 3...)
+    const currentLap = Math.floor(allUsedWords.length / totalUnique) + 1;
+    
+    // Беремо тільки ті слова, які були зіграні в ПОТОЧНОМУ колі
+    const wordsUsedInCurrentLap = allUsedWords.slice((currentLap - 1) * totalUnique);
 
-    // 7. Якщо унікальні слова закінчилися (наприклад, словник на 50 слів, а ми витягуємо 51-ше)
+    // Фільтруємо: залишаємо тільки ті, яких ЩЕ НЕ БУЛО в цьому конкретному колі
+    let availableWords = uniquePool.filter(w => !wordsUsedInCurrentLap.includes(w));
+
+    // Запобіжник (на випадок помилок округлення)
     if (availableWords.length === 0) {
-        // Дозволяємо словам піти по другому колу, щоб гра не зламалася
-        availableWords = uniquePool; 
+        availableWords = uniquePool;
     }
 
-    // 8. Видаємо випадкове слово з доступних
+    // 🔥 НОВЕ: Записуємо статистику в gameState, щоб фронтенд її бачив!
+    room.gameState.dictStats = {
+        total: totalUnique,
+        left: availableWords.length,
+        lap: currentLap
+    };
+
+    // Видаємо випадкове слово
     const word = availableWords[Math.floor(Math.random() * availableWords.length)];
     return word;
 };
