@@ -774,31 +774,51 @@ socket.on('startTurn', ({ roomCode }) => {
     }
   });
 
-  socket.on('nextWord', ({ roomCode, isCorrect }) => {
+socket.on('nextWord', ({ roomCode, isCorrect }) => {
     const room = rooms[roomCode];
     if (room && room.gameState.status === 'playing') {
       touchRoom(roomCode);
       if (room.gameState.currentExplainerId !== socket.id) return;
       
+      // 🔥 ПОЧАТОК ЗАХИСТУ ВІД ДАБЛ-КЛІКУ
+      const currentWord = room.gameState.currentWord;
+      const lastSavedWord = room.gameState.roundHistory[room.gameState.roundHistory.length - 1];
+
+      if (lastSavedWord && lastSavedWord.word === currentWord) {
+          console.log(`🛑 Заблоковано подвійний клік (nextWord) для слова: ${currentWord}`);
+          return; // Одразу виходимо, ігноруємо цей клік
+      }
+      // 🔥 КІНЕЦЬ ЗАХИСТУ
+      
       const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
       if (isCorrect) team.score += 1; else team.score -= 1;
       
-      room.gameState.roundHistory.push({ word: room.gameState.currentWord, status: isCorrect ? 'correct' : 'skipped' });
+      room.gameState.roundHistory.push({ word: currentWord, status: isCorrect ? 'correct' : 'skipped' });
       room.gameState.currentWord = getRandomWord(room);
       broadcastRoomUpdate(roomCode);
     }
   });
 
-  socket.on('lastWordResult', ({ roomCode, isCorrect }) => {
+socket.on('lastWordResult', ({ roomCode, isCorrect }) => {
     const room = rooms[roomCode];
     if (room && room.gameState.status === 'last_word') {
       touchRoom(roomCode);
       if (room.gameState.currentExplainerId !== socket.id) return;
 
+      // 🔥 ПОЧАТОК ЗАХИСТУ ВІД ДАБЛ-КЛІКУ
+      const currentWord = room.gameState.currentWord;
+      const lastSavedWord = room.gameState.roundHistory[room.gameState.roundHistory.length - 1];
+
+      if (lastSavedWord && lastSavedWord.word === currentWord) {
+          console.log(`🛑 Заблоковано подвійний клік (lastWord) для слова: ${currentWord}`);
+          return; // Одразу виходимо, ігноруємо цей клік
+      }
+      // 🔥 КІНЕЦЬ ЗАХИСТУ
+
       const team = room.teams.find(t => t.id === room.gameState.currentTeamId);
       if (isCorrect) team.score += 1;
 
-      room.gameState.roundHistory.push({ word: room.gameState.currentWord, status: isCorrect ? 'correct' : 'neutral' });
+      room.gameState.roundHistory.push({ word: currentWord, status: isCorrect ? 'correct' : 'neutral' });
 
       room.gameState.lastExplainerId = room.gameState.currentExplainerId;
       room.gameState.lastTeamId = room.gameState.currentTeamId;
