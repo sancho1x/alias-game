@@ -32,6 +32,7 @@ function App() {
   const [localTimer, setLocalTimer] = useState(0);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [showLoading, setShowLoading] = useState(false);
+  const [teamSortMode, setTeamSortMode] = useState('score'); // 'score' або 'order'
   
   const [appError, setAppError] = useState('');
   const errorTimerRef = useRef(null); // Зберігаємо ID таймера
@@ -801,9 +802,21 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
               ))}
             </div>
 
-            <div className="score-board">
-              <h3 style={{ marginBottom: '15px' }}>Рахунок:</h3>
-              {[...room.teams].sort((a, b) => b.score - a.score).map(t => (
+<div className="score-board">
+              {/* 🔥 ОНОВЛЕНА ШАПКА ДЛЯ ЕКРАНУ ПАУЗИ */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3 style={{ margin: 0 }}>Рахунок:</h3>
+                <button 
+                  className="ghost-btn" 
+                  style={{ padding: '4px 10px', fontSize: '0.8rem' }} 
+                  onClick={() => setTeamSortMode(prev => prev === 'score' ? 'order' : 'score')}
+                >
+                  {teamSortMode === 'score' ? 'Показати чергу ⬇️' : 'Показати по балах 🏆'}
+                </button>
+              </div>
+
+              {/* 🔥 ОНОВЛЕНИЙ ЦИКЛ ВИВОДУ */}
+              {(teamSortMode === 'score' ? [...room.teams].sort((a, b) => b.score - a.score) : room.teams).map(t => (
                 <div key={t.id} className="score-row">
                   <span>{t.name}</span><strong className="text-success">{t.score}</strong>
                 </div>
@@ -1035,13 +1048,25 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
               </div>
             )}
           </div>
-
-          <div className="teams-list">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+<div className="teams-list">
+            {/* 🔥 ОНОВЛЕНА ШАПКА З КНОПКОЮ СОРТУВАННЯ */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <h3>{room.teams.some(t => t.score !== 0) ? '🏆 Турнірна таблиця / Історія' : 'Команди'}</h3>
-              {isHost && room.players.filter(p => p.teamId).length > 0 && !isGamePausedInLobby && (
-                  <button className="secondary-btn" style={{ padding: '8px 15px', fontSize: '0.9rem' }} onClick={handleShuffleTeams}>🔀 Мікс</button>
-              )}
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {room.teams.some(t => t.score !== 0) && (
+                  <button 
+                    className="ghost-btn" 
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: 'var(--accent-blue)', color: 'var(--accent-blue)' }} 
+                    onClick={() => setTeamSortMode(prev => prev === 'score' ? 'order' : 'score')}
+                  >
+                    {teamSortMode === 'score' ? 'Показати чергу ⬇️' : 'Показати по балах 🏆'}
+                  </button>
+                )}
+                {isHost && room.players.filter(p => p.teamId).length > 0 && !isGamePausedInLobby && (
+                    <button className="secondary-btn" style={{ padding: '8px 15px', fontSize: '0.9rem' }} onClick={handleShuffleTeams}>🔀 Мікс</button>
+                )}
+              </div>
             </div>
             
             <div className="input-group inline" style={{ marginBottom: '15px', marginTop: '15px' }}>
@@ -1049,8 +1074,9 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
               <button onClick={handleCreateTeam} disabled={isGamePausedInLobby}>+</button>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[...room.teams].sort((a, b) => b.score - a.score).map(t => {
+<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* 🔥 ОНОВЛЕНИЙ ЦИКЛ ВИВОДУ */}
+              {(teamSortMode === 'score' ? [...room.teams].sort((a, b) => b.score - a.score) : room.teams).map(t => {
                 const teamPlayers = room.players.filter(p => p.teamId === t.id);
                 const isFull = teamPlayers.length >= 2;
                 const amIInThisTeam = myPlayerInfo?.teamId === t.id;
