@@ -428,6 +428,7 @@ socket.on('updateSettings', ({ roomCode, settings }) => {
 
     room.settings = { ...room.settings, ...settings };
     room.gameState.usedWords = [];
+    updateDictStats(room);
     broadcastRoomUpdate(roomCode);
   });
 
@@ -620,6 +621,29 @@ const getRandomWord = (room) => {
     const word = availableWords[Math.floor(Math.random() * availableWords.length)];
     return word;
 };
+    
+    const updateDictStats = (room) => {
+      let pool = room.settings.dictType === 'custom' 
+          ? (room.settings.customWords || [])
+          : (dictionaries[room.settings.dictType] || dictionaries.easy);
+      
+      if (!pool || pool.length === 0) return;
+      
+      const uniquePool = [...new Set(pool)];
+      const pastWords = (room.gameState.fullHistory || []).flatMap(t => (t.words || []).map(w => w.word));
+      const currentRoundWords = (room.gameState.roundHistory || []).map(w => w.word);
+      const currentActiveWord = room.gameState.currentWord ? [room.gameState.currentWord] : [];
+      
+      const allUsedWords = [...pastWords, ...currentRoundWords, ...currentActiveWord];
+      const currentLap = Math.floor(allUsedWords.length / uniquePool.length) + 1;
+      const wordsUsedInCurrentLap = allUsedWords.slice((currentLap - 1) * uniquePool.length);
+      
+      room.gameState.dictStats = {
+          total: uniquePool.length,
+          left: uniquePool.length - wordsUsedInCurrentLap.length,
+          lap: currentLap
+      };
+  };
 
   const runTimer = (room) => {
     if (room.timerInterval) clearInterval(room.timerInterval);
