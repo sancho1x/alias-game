@@ -487,12 +487,16 @@ room.gameState.explainerIndices[newTeam.id] = 0;
 
 socket.on('joinTeam', ({ roomCode, teamId }) => {
     const room = rooms[roomCode];
-    if (room) {
+    const player = room?.players.find(p => p.id === socket.id);
+    if (room && player) {
       touchRoom(roomCode);
-      const player = room.players.find(p => p.id === socket.id);
-      const playersInTeam = room.players.filter(p => p.teamId === teamId);
-      if (player && player.teamId !== teamId && playersInTeam.length >= 2) return socket.emit('error', 'Команда вже заповнена');
-      if (player) player.teamId = teamId;
+      const teamPlayers = room.players.filter(p => p.teamId === teamId);
+      
+      // 🔥 НОВЕ: Дивимось на налаштування кімнати. Якщо безліміт - пускаємо хоч 99 людей
+      const limit = room.settings?.unlimitedPlayers ? 99 : 2;
+      if (teamPlayers.length >= limit) return;
+
+      player.teamId = teamId;
       broadcastRoomUpdate(roomCode);
     }
   });
@@ -857,7 +861,18 @@ socket.on('lastWordResult', ({ roomCode, isCorrect }) => {
       room.gameState.lastTeamId = room.gameState.currentTeamId;
       room.gameState.turnsTaken += 1;
 
-      const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * room.teams.length * 2;
+      // 🔥 НОВЕ: Розрахунок кіл залежно від режиму балансу та кількості гравців
+      let maxTurns;
+      if (room.settings.laps === 'infinity') {
+          maxTurns = Infinity;
+      } else if (room.settings.unlimitedPlayers && room.settings.balanceMode === 'unbalanced') {
+          // БЕЗ БАЛАНСУ: Коло = кількість ВСІХ гравців, які є в командах (всі пояснюють по 1 разу)
+          const totalPlayersInTeams = room.players.filter(p => p.teamId !== null).length;
+          maxTurns = parseInt(room.settings.laps) * totalPlayersInTeams;
+      } else {
+          // БАЛАНС (або класика): Коло = кожна команда робить по 2 ходи
+          maxTurns = parseInt(room.settings.laps) * room.teams.length * 2;
+      }
       
       if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
         room.gameState.status = 'game_over';
