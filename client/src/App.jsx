@@ -233,10 +233,10 @@ useEffect(() => {
       const activeTeam = room.teams.find(t => t.id === room.gameState.currentTeamId);
       const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
       const activeExplainer = room.players.find(p => p.id === room.gameState.currentExplainerId);
-      const expIdx = teamPlayers.findIndex(p => p.id === activeExplainer?.id);
-      const activeGuesser = teamPlayers[(expIdx + 1) % (teamPlayers.length || 1)];
-
-      const amIActive = currentPlayerId === activeExplainer?.playerId || currentPlayerId === activeGuesser?.playerId;
+      
+      // 🔥 НОВЕ: Відгадувачів тепер може бути кілька (масив)
+      const guessers = teamPlayers.filter(p => p.id !== activeExplainer?.id);
+      const amIActive = currentPlayerId === activeExplainer?.playerId || guessers.some(g => g.playerId === currentPlayerId);
 
       if (amIActive) {
         // Ставимо мікро-паузу на 100мс
@@ -330,8 +330,17 @@ const handleCopyCode = () => {
       return true; // Все супер, можна грати
   };
 
-  const handleStartGameLobby = () => {
-    const maxTurns = room.settings.laps === 'infinity' ? Infinity : parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+const handleStartGameLobby = () => {
+    // 🔥 НОВЕ: Дублюємо математику з сервера для лобі
+    const totalPlayersInTeams = room.players.filter(p => p.teamId !== null).length;
+    let maxTurns;
+    if (room.settings.laps === 'infinity') {
+        maxTurns = Infinity;
+    } else if (room.settings.unlimitedPlayers && room.settings.balanceMode === 'unbalanced') {
+        maxTurns = parseInt(room.settings.laps) * totalPlayersInTeams;
+    } else {
+        maxTurns = parseInt(room.settings.laps) * (room.teams.length * 2 || 1);
+    }
     
     // Перевірка на завершення гри
     if (maxTurns !== Infinity && room.gameState.turnsTaken >= maxTurns) {
@@ -637,8 +646,8 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
     const activeTeam = room.teams.find(t => t.id === room.gameState.currentTeamId);
     const teamPlayers = room.players.filter(p => p.teamId === activeTeam?.id);
     const activeExplainer = room.players.find(p => p.id === room.gameState.currentExplainerId);
-    const expIdx = teamPlayers.findIndex(p => p.id === activeExplainer?.id);
-    const activeGuesser = teamPlayers[(expIdx + 1) % (teamPlayers.length || 1)];
+    const guessers = teamPlayers.filter(p => p.id !== activeExplainer?.id);
+    const guessersNames = guessers.map(g => g.name).join(', ') || '...';
     
     return (
       <>
@@ -719,7 +728,7 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
                     <h3 style={{ color: 'var(--accent-green)', marginBottom: '10px', fontSize: '1.5rem' }}>{activeTeam?.name}</h3>
                     <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
                         Пояснює: <strong style={{ color: 'white' }}>{activeExplainer?.name || '...'}</strong><br/>
-                        Відгадує: <strong style={{ color: 'white' }}>{activeGuesser?.name || '...'}</strong>
+                        Відгадують: <strong style={{ color: 'white' }}>{guessersNames}</strong>
                     </p>
                 </div>
               )}
@@ -970,45 +979,71 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
 
                 {/* ПРИБРАНО disabled={isGamePausedInLobby} ДЛЯ ВСІХ ПОЛІВ НИЖЧЕ */}
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Час раунду (в секундах): 
-<input 
-  type="number"
-  min="10"
-  value={room.settings.timer} 
-  onChange={e => updateSettings({ timer: e.target.value === '' ? '' : Number(e.target.value) })} 
-  onBlur={e => {
-      const val = Number(e.target.value);
-      if (!val || val < 10) updateSettings({ timer: 60 });
-  }}
-  style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
-/>
+                  <input 
+                    type="number"
+                    min="10"
+                    value={room.settings.timer} 
+                    onChange={e => updateSettings({ timer: e.target.value === '' ? '' : Number(e.target.value) })} 
+                    onBlur={e => {
+                        const val = Number(e.target.value);
+                        if (!val || val < 10) updateSettings({ timer: 60 });
+                    }}
+                    style={{ marginTop: '8px', width: '100%', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                  />
                 </label>
                 
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Словник: 
-<select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} style={{ marginTop: '8px', width: '100%' }}>
-            {/* Базові */}
-            <option value="easy">Легкий </option>
-            <option value="medium">Середній </option>
-            <option value="hard">Важкий </option>
-            
-            {/* Альтернативні */}
-            <option value="easy_alt">Легкий (Альтернативний)</option>
-            <option value="medium_alt">Середній (Альтернативний)</option>
-            <option value="hard_alt">Важкий (Альтернативний)</option>
-            
-            {/* Тематичні */}
-            <option value="movies">Кіно та серіали</option>
-            <option value="gamer_experimental_alt">Геймерський(Альтернативний) </option>
-            <option value="gamer_experimental">Геймерський </option>
-            <option value="science">Наука</option>
-            <option value="marvel_dc">Marvel & DC</option>
-            <option value="ua_culture">Український колорит</option>
-            <option value="IT">IT (Айтішка)</option>
-            <option value="harry_potter">Гаррі Поттер</option>
-            
-            {/* Кастомний */}
-            <option value="custom">Свій словник</option>
-          </select>
+                  <select value={room.settings.dictType} onChange={e => updateSettings({ dictType: e.target.value })} style={{ marginTop: '8px', width: '100%' }}>
+                    {/* Базові */}
+                    <option value="easy">Легкий </option>
+                    <option value="medium">Середній </option>
+                    <option value="hard">Важкий </option>
+                    
+                    {/* Альтернативні */}
+                    <option value="easy_alt">Легкий (Альтернативний)</option>
+                    <option value="medium_alt">Середній (Альтернативний)</option>
+                    <option value="hard_alt">Важкий (Альтернативний)</option>
+                    
+                    {/* Тематичні */}
+                    <option value="movies">Кіно та серіали</option>
+                    <option value="gamer_experimental_alt">Геймерський(Альтернативний) </option>
+                    <option value="gamer_experimental">Геймерський </option>
+                    <option value="science">Наука</option>
+                    <option value="marvel_dc">Marvel & DC</option>
+                    <option value="ua_culture">Український колорит</option>
+                    <option value="IT">IT (Айтішка)</option>
+                    <option value="harry_potter">Гаррі Поттер</option>
+                    
+                    {/* Кастомний */}
+                    <option value="custom">Свій словник</option>
+                  </select>
                 </label>
+
+                {/* 🔥 НОВЕ: Розмір команди */}
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Розмір команди: 
+                  <select 
+                    value={room.settings?.unlimitedPlayers ? 'unlimited' : '2'} 
+                    onChange={e => updateSettings({ unlimitedPlayers: e.target.value === 'unlimited' })} 
+                    style={{ marginTop: '8px', width: '100%' }}
+                  >
+                    <option value="2">Суворо 2 гравці</option>
+                    <option value="unlimited">3 і більше (Фан)</option>
+                  </select>
+                </label>
+
+                {/* 🔥 НОВЕ: Режим балансу (показується тільки якщо вибрано Фан-режим) */}
+                {room.settings?.unlimitedPlayers && (
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Різна кількість гравців: 
+                    <select 
+                      value={room.settings?.balanceMode || 'unbalanced'} 
+                      onChange={e => updateSettings({ balanceMode: e.target.value })} 
+                      style={{ marginTop: '8px', width: '100%' }}
+                    >
+                      <option value="unbalanced">Без балансу (всі пояснюють по 1 разу)</option>
+                      <option value="balanced">Баланс ходів (кожна команда робить по 2 ходи)</option>
+                    </select>
+                  </label>
+                )}
 
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>Кількість кіл (0 = Безкінечно): 
                   <input 
@@ -1023,7 +1058,7 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
                   />
                 </label>
 
-{room.settings.dictType === 'custom' && (
+                {room.settings.dictType === 'custom' && (
                   <textarea 
                     className="settings-input"
                     placeholder="Введіть слова чи фрази. Кожна фраза з нового рядка або через крапку з комою (;)..." 
@@ -1044,6 +1079,13 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
                 <p>Обов'язковий Twitch: <strong style={{ color: room.settings.requireTwitchAuth ? 'var(--accent-green)' : 'inherit' }}>{room.settings.requireTwitchAuth ? 'Так' : 'Ні'}</strong></p>
                 <p>Час: <strong>{room.settings.timer} сек</strong></p>
                 <p>Словник: <strong>{room.settings.dictType}</strong></p>
+                
+                {/* 🔥 НОВЕ: Відображення для глядачів */}
+                <p>Розмір команди: <strong>{room.settings?.unlimitedPlayers ? '3 і більше (Фан)' : 'Суворо 2'}</strong></p>
+                {room.settings?.unlimitedPlayers && (
+                  <p>Баланс: <strong style={{ color: 'var(--accent-yellow)' }}>{room.settings?.balanceMode === 'balanced' ? 'Баланс ходів' : 'Без балансу'}</strong></p>
+                )}
+
                 <p>Кіл: <strong>{room.settings.laps === 'infinity' ? 'Безкінечно' : room.settings.laps}</strong></p>
               </div>
             )}
@@ -1078,7 +1120,7 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
               {/* 🔥 ОНОВЛЕНИЙ ЦИКЛ ВИВОДУ */}
               {(teamSortMode === 'score' ? [...room.teams].sort((a, b) => b.score - a.score) : room.teams).map(t => {
                 const teamPlayers = room.players.filter(p => p.teamId === t.id);
-                const isFull = teamPlayers.length >= 2;
+                const isFull = teamPlayers.length >= (room.settings?.unlimitedPlayers ? 99 : 2);
                 const amIInThisTeam = myPlayerInfo?.teamId === t.id;
                 
                 const isExpanded = expandedTeams[t.id];
