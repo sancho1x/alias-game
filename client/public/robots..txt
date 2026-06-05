@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://alias-game-psi.vercel.app/sitemap.xml
