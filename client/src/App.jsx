@@ -54,7 +54,7 @@ function App() {
  // 🔥 НОВИЙ КОД: Захист від мерехтіння екрану завантаження
   useEffect(() => {
     let timeout;
-    if (!isConnected && showLoading) {
+    if (!isConnected) {
       timeout = setTimeout(() => setShowLoading(true), 1500);
     } else {
       // Якщо підключились швидко - ховаємо миттєво
@@ -1007,7 +1007,7 @@ if (room.gameState.status === 'playing' || room.gameState.status === 'last_word'
                     {/* Тематичні */}
                     <option value="movies">Кіно та серіали</option>
                     <option value="gamer_experimental_alt">Геймерський(Альтернативний) </option>
-                    <option value="gamer_experimental">Геймерський </option>
+                    <option value="gamer">Геймерський </option>
                     <option value="science">Наука</option>
                     <option value="marvel_dc">Marvel & DC</option>
                     <option value="ua_culture">Український колорит</option>
